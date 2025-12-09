@@ -7,9 +7,9 @@ import java.util.UUID;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.NullValuePropertyMappingStrategy;
-import ru.eunoia.domain.model.EmailVerificationToken;
-import ru.eunoia.domain.model.PasswordResetToken;
-import ru.eunoia.domain.model.RefreshToken;
+import ru.eunoia.application.domain.model.EmailVerificationToken;
+import ru.eunoia.application.domain.model.PasswordResetToken;
+import ru.eunoia.application.domain.model.RefreshToken;
 
 @Mapper(
         componentModel = "spring",

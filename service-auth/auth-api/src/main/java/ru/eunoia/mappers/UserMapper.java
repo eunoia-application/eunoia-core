@@ -12,8 +12,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
-import ru.eunoia.domain.model.User;
-import ru.eunoia.domain.model.UserStats;
+import ru.eunoia.application.domain.model.User;
+import ru.eunoia.application.domain.model.UserStats;
 
 @Mapper(
         componentModel = "spring",
@@ -40,11 +40,11 @@ public interface UserMapper {
 
     @Mapping(source = "noteCount", target = "noteCount")
     @Mapping(source = "evergreenNoteCount", target = "evergreenNoteCount")
-    UserPublicStats toDto(ru.eunoia.domain.model.UserPublicStats stats);
+    UserPublicStats toDto(ru.eunoia.application.domain.model.UserPublicStats stats);
 
     @Mapping(source = "noteCount", target = "noteCount")
     @Mapping(source = "evergreenNoteCount", target = "evergreenNoteCount")
-    ru.eunoia.domain.model.UserPublicStats toDomain(UserPublicStats dto);
+    ru.eunoia.application.domain.model.UserPublicStats toDomain(UserPublicStats dto);
 
     // =========== UserSettings Domain <-> DTO ===========
 
@@ -52,13 +52,13 @@ public interface UserMapper {
     @Mapping(target = "defaultNoteStatus", qualifiedByName = "mapStatusToString")
     @Mapping(source = "emailNotifications", target = "emailNotifications")
     @Mapping(source = "aiSuggestionsEnabled", target = "aiSuggestionsEnabled")
-    UserSettings toDto(ru.eunoia.domain.model.UserSettings settings);
+    UserSettings toDto(ru.eunoia.application.domain.model.UserSettings settings);
 
     @Mapping(target = "theme", qualifiedByName = "mapStringToTheme")
     @Mapping(target = "defaultNoteStatus", qualifiedByName = "mapStringToStatus")
     @Mapping(source = "emailNotifications", target = "emailNotifications")
     @Mapping(source = "aiSuggestionsEnabled", target = "aiSuggestionsEnabled")
-    ru.eunoia.domain.model.UserSettings toDomain(UserSettings dto);
+    ru.eunoia.application.domain.model.UserSettings toDomain(UserSettings dto);
 
     // =========== UserUpdateRequest -> User (частичное обновление) ===========
 

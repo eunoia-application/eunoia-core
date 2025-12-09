@@ -12,13 +12,13 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
-import ru.eunoia.domain.model.AuthTokens;
-import ru.eunoia.domain.model.RefreshToken;
-import ru.eunoia.domain.model.User;
-import ru.eunoia.domain.model.UserSettings;
-import ru.eunoia.domain.model.UserStats;
-import ru.eunoia.domain.model.enums.DefaultNoteStatus;
-import ru.eunoia.domain.model.enums.Theme;
+import ru.eunoia.application.domain.model.AuthTokens;
+import ru.eunoia.application.domain.model.RefreshToken;
+import ru.eunoia.application.domain.model.User;
+import ru.eunoia.application.domain.model.UserSettings;
+import ru.eunoia.application.domain.model.UserStats;
+import ru.eunoia.application.domain.model.enums.DefaultNoteStatus;
+import ru.eunoia.application.domain.model.enums.Theme;
 
 @Mapper(
         componentModel = "spring",
