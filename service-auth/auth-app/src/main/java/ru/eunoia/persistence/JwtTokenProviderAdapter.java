@@ -18,6 +18,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * M0: symmetric HMAC signing kept as-is so the module compiles on the new domain.
+ * M1 replaces this with RS256 + JWKS (see KeyProviderPort / JwksProvider) and fixes the
+ * seconds/ms mixup and the missing token-type check.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtTokenProviderAdapter implements TokenProviderPort {
@@ -25,10 +30,10 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.access-token-expiration:3600}") // 1 час по умолчанию
+    @Value("${jwt.access-token-expiration:3600}")
     private long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token-expiration:2592000}") // 30 дней по умолчанию
+    @Value("${jwt.refresh-token-expiration:2592000}")
     private long refreshTokenExpiration;
 
     @Override
@@ -36,16 +41,17 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
         String accessToken = generateAccessToken(user);
         String refreshToken = generateRefreshToken(user);
 
-        return AuthTokens.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresIn((int) (accessTokenExpiration / 1000)) // в секундах
-                .userId(user.getId())
-                .issuedAt(LocalDateTime.now())
-                .accessTokenExpiresAt(LocalDateTime.now().plusSeconds(accessTokenExpiration / 1000))
-                .refreshTokenExpiresAt(LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000))
-                .build();
+        LocalDateTime now = LocalDateTime.now();
+        return new AuthTokens(
+                accessToken,
+                refreshToken,
+                AuthTokens.BEARER,
+                (int) (accessTokenExpiration / 1000),
+                user.id(),
+                now,
+                now.plusSeconds(accessTokenExpiration / 1000),
+                now.plusSeconds(refreshTokenExpiration / 1000)
+        );
     }
 
     @Override
@@ -77,20 +83,18 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
 
     private String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId().toString());
-        claims.put("username", user.getUsername());
-        claims.put("email", user.getEmail());
+        claims.put("userId", user.id().toString());
+        claims.put("username", user.username());
+        claims.put("email", user.email());
         claims.put("type", "ACCESS");
-
-        return buildToken(claims, user.getEmail(), accessTokenExpiration);
+        return buildToken(claims, user.email(), accessTokenExpiration);
     }
 
     private String generateRefreshToken(User user) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId().toString());
+        claims.put("userId", user.id().toString());
         claims.put("type", "REFRESH");
-
-        return buildToken(claims, user.getEmail(), refreshTokenExpiration);
+        return buildToken(claims, user.email(), refreshTokenExpiration);
     }
 
     private String buildToken(Map<String, Object> claims, String subject, long expiration) {
@@ -127,5 +131,4 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
-
 }

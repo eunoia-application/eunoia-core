@@ -1,4 +1,4 @@
-package ru.eunoia.controllers;
+package ru.eunoia.filter;
 
 import lombok.extern.log4j.Log4j2;
 import org.springframework.cloud.gateway.filter.GatewayFilter;

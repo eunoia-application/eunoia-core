@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.eunoia.application.port.out.AuthEventRepositoryPort;
 import ru.eunoia.application.domain.model.AuthEvent;
-import ru.eunoia.application.domain.model.entity.AuthEventEntity;
+import ru.eunoia.persistence.entity.AuthEventEntity;
 import ru.eunoia.persistence.mapper.AuthEventMapper;
 import ru.eunoia.persistence.repository.AuthEventJpaRepository;
 

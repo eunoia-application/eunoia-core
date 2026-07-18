@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.0</version>
+        <version>4.1.0</version>
         <relativePath/>
     </parent>
 
@@ -24,10 +24,8 @@
     </modules>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <liquibase.version>4.20.0</liquibase.version>
         <version.openapi-generator>6.2.0</version.openapi-generator>
     </properties>
 
@@ -55,11 +53,36 @@
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
-                <version>2023.0.2</version>
+                <version>2025.1.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- JDK 23+ no longer runs annotation processors found only on the
+                     classpath, so Lombok silently stopped generating code. Put Lombok on
+                     an explicit processor path so it runs in every module. MapStruct is
+                     deliberately left off for now — the skeleton @Mapper classes are
+                     rewritten in M1; running MapStruct against them now would only add noise. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
 </project>

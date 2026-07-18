@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import ru.eunoia.application.domain.model.entity.AuthEventEntity;
+import ru.eunoia.persistence.entity.AuthEventEntity;
 
 @Repository
 public interface AuthEventJpaRepository extends JpaRepository<AuthEventEntity, UUID> {

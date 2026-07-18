@@ -2,34 +2,43 @@ package ru.eunoia.application.domain.model;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class User {
+import ru.eunoia.application.domain.exception.AccountLockedException;
+import ru.eunoia.application.domain.exception.AccountNotActiveException;
 
-    private UUID id;
-    private String email;
-    private String username;
-    private String passwordHash;
-    private String firstName;
-    private String lastName;
-    private String avatarUrl;
-    private String bio;
-    private boolean emailVerified;
-    private boolean active;
-    private boolean locked;
-    private UserStats stats;
-    private UserSettings settings;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime lastLoginAt;
-    private Integer failedLoginAttempts;
-    private LocalDateTime lockedUntil;
+/**
+ * Auth-view of a user: credentials and security state only.
+ * Profile data (name, avatar, settings, stats, ...) belongs to service-user (Design B),
+ * not to the auth bounded context.
+ */
+public record User(
+        UUID id,
+        String email,
+        String username,
+        String passwordHash,
+        boolean emailVerified,
+        boolean active,
+        boolean locked,
+        int failedLoginAttempts,
+        LocalDateTime lockedUntil,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        LocalDateTime lastLoginAt
+) {
 
+    /** A brand-new registration: active, unverified, unlocked, no failed attempts yet. */
+    public static User newlyRegistered(String email, String username, String passwordHash) {
+        return new User(null, email, username, passwordHash,
+                false, true, false, 0, null, null, null, null);
+    }
+
+    /** Domain rule: may this account complete authentication right now? Throws if not. */
+    public void assertCanAuthenticate() {
+        if (!active) {
+            throw new AccountNotActiveException();
+        }
+        if (locked) {
+            throw new AccountLockedException();
+        }
+    }
 }

@@ -1,4 +1,4 @@
-package ru.eunoia.application.domain.model.entity;
+package ru.eunoia.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,6 +20,10 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * JPA persistence model for auth events. Lives in the persistence adapter (auth-app),
+ * not in the domain core — the core speaks in {@code AuthEvent}.
+ */
 @Entity
 @Table(name = "auth_events", indexes = {
         @Index(name = "idx_auth_events_user_id", columnList = "user_id"),

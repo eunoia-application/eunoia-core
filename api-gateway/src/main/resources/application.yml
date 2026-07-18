@@ -3,6 +3,11 @@ spring:
     name: api-gateway
   liquibase:
     enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: lb://SERVICE-AUTHORIZATION
 
 server:
   port: 7777
