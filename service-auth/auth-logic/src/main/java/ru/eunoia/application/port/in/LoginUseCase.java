@@ -1,10 +1,9 @@
 package ru.eunoia.application.port.in;
 
 import ru.eunoia.application.comand.LoginCommand;
-import ru.eunoia.application.domain.model.AuthTokens;
+import ru.eunoia.application.domain.model.Authentication;
 
 public interface LoginUseCase {
 
-    AuthTokens login(LoginCommand command);
-
+    Authentication login(LoginCommand command);
 }

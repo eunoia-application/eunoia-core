@@ -27,6 +27,11 @@
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <version.openapi-generator>6.2.0</version.openapi-generator>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+        <!-- Boot 4.1 тянет Testcontainers 2.0 (там артефакты переименованы: postgresql →
+             testcontainers-postgresql и т.д.). Пинимся на стабильный 1.x, как в референсе. -->
+        <testcontainers.version>1.20.4</testcontainers.version>
     </properties>
 
     <profiles>
@@ -63,11 +68,9 @@
     <build>
         <pluginManagement>
             <plugins>
-                <!-- JDK 23+ no longer runs annotation processors found only on the
-                     classpath, so Lombok silently stopped generating code. Put Lombok on
-                     an explicit processor path so it runs in every module. MapStruct is
-                     deliberately left off for now — the skeleton @Mapper classes are
-                     rewritten in M1; running MapStruct against them now would only add noise. -->
+                <!-- JDK 23+ не запускает annotation-процессоры с classpath автоматически —
+                     задаём их явно, чтобы Lombok и MapStruct работали во всех модулях.
+                     lombok-mapstruct-binding нужен, чтобы MapStruct видел Lombok-аксессоры. -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -77,6 +80,16 @@
                                 <groupId>org.projectlombok</groupId>
                                 <artifactId>lombok</artifactId>
                                 <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok-mapstruct-binding</artifactId>
+                                <version>${lombok-mapstruct-binding.version}</version>
                             </path>
                         </annotationProcessorPaths>
                     </configuration>

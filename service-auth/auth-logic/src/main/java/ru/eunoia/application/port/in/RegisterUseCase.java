@@ -1,10 +1,9 @@
 package ru.eunoia.application.port.in;
 
 import ru.eunoia.application.comand.RegisterCommand;
-import ru.eunoia.application.domain.model.AuthTokens;
+import ru.eunoia.application.domain.model.Authentication;
 
 public interface RegisterUseCase {
 
-    AuthTokens register(RegisterCommand command);
-
+    Authentication register(RegisterCommand command);
 }
