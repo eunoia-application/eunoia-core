@@ -91,5 +91,18 @@ class AuthenticationFlowTest {
                 .toEntity(Map.class);
         assertThat(jwks.getStatusCode().value()).isEqualTo(200);
         assertThat(jwks.getBody()).containsKey("keys");
+
+        // logout по access-токену → 204; после него refresh отозванным токеном больше не проходит
+        ResponseEntity<Void> loggedOut = client().post().uri("/auth/logout")
+                .header("Authorization", "Bearer " + loggedIn.getBody().getAccessToken())
+                .retrieve()
+                .toBodilessEntity();
+        assertThat(loggedOut.getStatusCode().value()).isEqualTo(204);
+
+        HttpStatusCode afterLogout = client().post().uri("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new RefreshTokenRequest(refreshed.getBody().getRefreshToken()))
+                .exchange((request, response) -> response.getStatusCode());
+        assertThat(afterLogout.value()).isEqualTo(401);
     }
 }

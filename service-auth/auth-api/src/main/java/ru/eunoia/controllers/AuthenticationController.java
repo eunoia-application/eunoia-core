@@ -12,13 +12,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import ru.eunoia.application.port.in.LoginUseCase;
+import ru.eunoia.application.port.in.LogoutUseCase;
 import ru.eunoia.application.port.in.RefreshTokenUseCase;
 import ru.eunoia.application.port.in.RegisterUseCase;
 import ru.eunoia.mappers.AuthApiMapper;
+import ru.eunoia.security.CurrentUser;
 
 /**
  * Веб-адаптер auth: реализует сгенерённый AuthApi и делегирует в use case'ы.
- * Работают register/login/refresh; logout/verify-email/forgot/reset — заглушки до конца M2.
+ * Работают register/login/refresh/logout; verify-email/forgot/reset — заглушки до конца M2.
  */
 @RestController
 @RequiredArgsConstructor
@@ -27,6 +29,8 @@ public class AuthenticationController implements AuthApi {
     private final LoginUseCase loginUseCase;
     private final RegisterUseCase registerUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
+    private final LogoutUseCase logoutUseCase;
+    private final CurrentUser currentUser;
     private final AuthApiMapper mapper;
 
     @Override
@@ -47,12 +51,13 @@ public class AuthenticationController implements AuthApi {
         return ResponseEntity.ok(mapper.toResponse(authentication));
     }
 
-    // --- заглушки до конца M2 ---
-
     @Override
     public ResponseEntity<Void> logout() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        logoutUseCase.logout(currentUser.id());
+        return ResponseEntity.noContent().build();
     }
+
+    // --- заглушки до конца M2 ---
 
     @Override
     public ResponseEntity<Void> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {

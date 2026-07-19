@@ -3,6 +3,7 @@ package ru.eunoia.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.eunoia.application.port.in.LoginUseCase;
+import ru.eunoia.application.port.in.LogoutUseCase;
 import ru.eunoia.application.port.in.RefreshTokenUseCase;
 import ru.eunoia.application.port.in.RegisterUseCase;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
@@ -10,6 +11,7 @@ import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
 import ru.eunoia.application.port.out.UserRepositoryPort;
 import ru.eunoia.application.services.LoginUseCaseImpl;
+import ru.eunoia.application.services.LogoutUseCaseImpl;
 import ru.eunoia.application.services.RefreshTokenUseCaseImpl;
 import ru.eunoia.application.services.RegisterUseCaseImpl;
 
@@ -40,5 +42,10 @@ public class UseCaseConfig {
                                                    TokenProviderPort tokenProvider,
                                                    RefreshTokenRepositoryPort refreshTokenRepository) {
         return new RefreshTokenUseCaseImpl(userRepository, tokenProvider, refreshTokenRepository);
+    }
+
+    @Bean
+    public LogoutUseCase logoutUseCase(RefreshTokenRepositoryPort refreshTokenRepository) {
+        return new LogoutUseCaseImpl(refreshTokenRepository);
     }
 }
