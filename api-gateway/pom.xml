@@ -34,14 +34,11 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Стартер тянет oauth2 resource-server + jose И Boot-автоконфиг, который по
+             jwk-set-uri создаёт ReactiveJwtDecoder. В Boot 4 одних security-либ мало. -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-oauth2-resource-server</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-oauth2-jose</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
         <dependency>

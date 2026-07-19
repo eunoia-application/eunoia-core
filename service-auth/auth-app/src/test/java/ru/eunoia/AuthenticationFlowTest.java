@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.eunoia.application.auth.model.AuthResponse;
 import com.eunoia.application.auth.model.LoginRequest;
+import com.eunoia.application.auth.model.RefreshTokenRequest;
 import com.eunoia.application.auth.model.RegisterRequest;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * повторный login проходит, неверный пароль — 401, JWKS отдаёт публичный ключ.
  * Требует запущенный Docker.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "eureka.client.enabled=false")
 @Testcontainers
 class AuthenticationFlowTest {
 
@@ -64,6 +67,16 @@ class AuthenticationFlowTest {
         assertThat(loggedIn.getStatusCode().value()).isEqualTo(200);
         assertThat(loggedIn.getBody()).isNotNull();
         assertThat(loggedIn.getBody().getAccessToken()).isNotBlank();
+
+        // refresh по выданному refresh-токену → 200 + новая пара (проверяет ротацию и таблицу)
+        ResponseEntity<AuthResponse> refreshed = client().post().uri("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new RefreshTokenRequest(loggedIn.getBody().getRefreshToken()))
+                .retrieve()
+                .toEntity(AuthResponse.class);
+        assertThat(refreshed.getStatusCode().value()).isEqualTo(200);
+        assertThat(refreshed.getBody()).isNotNull();
+        assertThat(refreshed.getBody().getAccessToken()).isNotBlank();
 
         // неверный пароль → 401 (exchange — чтобы 4xx не бросал исключение)
         HttpStatusCode wrongStatus = client().post().uri("/auth/login")

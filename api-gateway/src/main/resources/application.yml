@@ -7,7 +7,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: lb://SERVICE-AUTHORIZATION
+          # gateway проверяет токены по публичному ключу auth (JWKS). Локально — прямой адрес;
+          # lb:// декодер не понимает (это схема роутинга), а issuer-uri тянет OIDC-discovery на старте.
+          # Load-balanced JWKS через Eureka — это M5.
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
 server:
   port: 7777

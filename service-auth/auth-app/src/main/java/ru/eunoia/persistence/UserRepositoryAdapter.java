@@ -20,6 +20,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     private final UserJpaRepository jpaRepository;
 
     @Override
+    public Optional<User> findById(UUID id) {
+        return jpaRepository.findById(id).map(this::toDomain);
+    }
+
+    @Override
     public Optional<User> findByEmail(String email) {
         return jpaRepository.findByEmail(email).map(this::toDomain);
     }

@@ -1,13 +1,16 @@
 package ru.eunoia.application.port.out;
 
 import java.util.Optional;
+import java.util.UUID;
 import ru.eunoia.application.domain.model.User;
 
 /**
- * Outbound port for the auth-owned user store (Design B: service-auth owns credentials).
- * Backed by a JPA adapter in auth-app; replaces the old remote UserServicePort.
+ * Outbound-порт для auth-хранилища юзеров (Design B: identity у service-auth).
+ * Реализуется JPA-адаптером в auth-app.
  */
 public interface UserRepositoryPort {
+
+    Optional<User> findById(UUID id);
 
     Optional<User> findByEmail(String email);
 
