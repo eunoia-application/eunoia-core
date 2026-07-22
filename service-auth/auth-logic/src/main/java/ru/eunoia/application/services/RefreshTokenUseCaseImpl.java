@@ -3,6 +3,7 @@ package ru.eunoia.application.services;
 import java.util.UUID;
 import ru.eunoia.application.domain.exception.TokenValidationException;
 import ru.eunoia.application.domain.exception.UserNotFoundException;
+import ru.eunoia.application.domain.model.AuthEvent;
 import ru.eunoia.application.domain.model.Authentication;
 import ru.eunoia.application.domain.model.AuthTokens;
 import ru.eunoia.application.domain.model.RefreshToken;
@@ -12,19 +13,22 @@ import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
 import ru.eunoia.application.port.out.UserRepositoryPort;
 
-/** Обновление токенов с ротацией: старый refresh гасим, выдаём и записываем новую пару. Без Spring. */
+/** Обновление токенов с ротацией: старый refresh гасим, выдаём и записываем новую пару, пишем TOKEN_REFRESH. */
 public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
 
     private final UserRepositoryPort userRepository;
     private final TokenProviderPort tokenProvider;
     private final RefreshTokenRepositoryPort refreshTokenRepository;
+    private final AuthEventRecorder recorder;
 
     public RefreshTokenUseCaseImpl(UserRepositoryPort userRepository,
                                    TokenProviderPort tokenProvider,
-                                   RefreshTokenRepositoryPort refreshTokenRepository) {
+                                   RefreshTokenRepositoryPort refreshTokenRepository,
+                                   AuthEventRecorder recorder) {
         this.userRepository = userRepository;
         this.tokenProvider = tokenProvider;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.recorder = recorder;
     }
 
     @Override
@@ -49,6 +53,7 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
         AuthTokens tokens = tokenProvider.generateTokens(user);
         refreshTokenRepository.save(
                 RefreshToken.issued(tokens.refreshToken(), user.id(), tokens.refreshTokenExpiresAt()));
+        recorder.record(user.id(), AuthEvent.EventType.TOKEN_REFRESH, true);
 
         return new Authentication(user, tokens);
     }

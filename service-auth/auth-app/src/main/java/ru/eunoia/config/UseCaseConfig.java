@@ -13,6 +13,7 @@ import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
 import ru.eunoia.application.port.out.UserRepositoryPort;
+import ru.eunoia.application.services.AuthEventRecorder;
 import ru.eunoia.application.services.LoginUseCaseImpl;
 import ru.eunoia.application.services.LogoutUseCaseImpl;
 import ru.eunoia.application.services.RefreshTokenUseCaseImpl;
@@ -24,35 +25,45 @@ import ru.eunoia.application.services.RegisterUseCaseImpl;
 @Configuration
 public class UseCaseConfig {
 
+    /** Общий писатель аудита — прокидываем во все use case'ы, чтобы события собирались в одном месте. */
+    @Bean
+    public AuthEventRecorder authEventRecorder(AuthEventRepositoryPort authEventRepository) {
+        return new AuthEventRecorder(authEventRepository);
+    }
+
     @Bean
     public LoginUseCase loginUseCase(UserRepositoryPort userRepository,
                                      PasswordEncoderPort passwordEncoder,
                                      TokenProviderPort tokenProvider,
                                      RefreshTokenRepositoryPort refreshTokenRepository,
-                                     AuthEventRepositoryPort authEventRepository,
+                                     AuthEventRecorder recorder,
                                      @Value("${auth.lockout.max-attempts:5}") int maxAttempts,
                                      @Value("${auth.lockout.lock-duration-minutes:15}") long lockMinutes) {
         return new LoginUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository,
-                authEventRepository, maxAttempts, Duration.ofMinutes(lockMinutes));
+                recorder, maxAttempts, Duration.ofMinutes(lockMinutes));
     }
 
     @Bean
     public RegisterUseCase registerUseCase(UserRepositoryPort userRepository,
                                            PasswordEncoderPort passwordEncoder,
                                            TokenProviderPort tokenProvider,
-                                           RefreshTokenRepositoryPort refreshTokenRepository) {
-        return new RegisterUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository);
+                                           RefreshTokenRepositoryPort refreshTokenRepository,
+                                           AuthEventRecorder recorder) {
+        return new RegisterUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository,
+                recorder);
     }
 
     @Bean
     public RefreshTokenUseCase refreshTokenUseCase(UserRepositoryPort userRepository,
                                                    TokenProviderPort tokenProvider,
-                                                   RefreshTokenRepositoryPort refreshTokenRepository) {
-        return new RefreshTokenUseCaseImpl(userRepository, tokenProvider, refreshTokenRepository);
+                                                   RefreshTokenRepositoryPort refreshTokenRepository,
+                                                   AuthEventRecorder recorder) {
+        return new RefreshTokenUseCaseImpl(userRepository, tokenProvider, refreshTokenRepository, recorder);
     }
 
     @Bean
-    public LogoutUseCase logoutUseCase(RefreshTokenRepositoryPort refreshTokenRepository) {
-        return new LogoutUseCaseImpl(refreshTokenRepository);
+    public LogoutUseCase logoutUseCase(RefreshTokenRepositoryPort refreshTokenRepository,
+                                       AuthEventRecorder recorder) {
+        return new LogoutUseCaseImpl(refreshTokenRepository, recorder);
     }
 }

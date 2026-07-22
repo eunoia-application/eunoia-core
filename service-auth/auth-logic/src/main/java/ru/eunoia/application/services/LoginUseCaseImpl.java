@@ -1,8 +1,6 @@
 package ru.eunoia.application.services;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.UUID;
 import ru.eunoia.application.comand.LoginCommand;
 import ru.eunoia.application.domain.exception.InvalidCredentialsException;
 import ru.eunoia.application.domain.exception.UserNotFoundException;
@@ -12,7 +10,6 @@ import ru.eunoia.application.domain.model.AuthTokens;
 import ru.eunoia.application.domain.model.RefreshToken;
 import ru.eunoia.application.domain.model.User;
 import ru.eunoia.application.port.in.LoginUseCase;
-import ru.eunoia.application.port.out.AuthEventRepositoryPort;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
@@ -28,7 +25,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
     private final PasswordEncoderPort passwordEncoder;
     private final TokenProviderPort tokenProvider;
     private final RefreshTokenRepositoryPort refreshTokenRepository;
-    private final AuthEventRepositoryPort authEventRepository;
+    private final AuthEventRecorder recorder;
     private final int maxLoginAttempts;
     private final Duration lockDuration;
 
@@ -36,14 +33,14 @@ public class LoginUseCaseImpl implements LoginUseCase {
                             PasswordEncoderPort passwordEncoder,
                             TokenProviderPort tokenProvider,
                             RefreshTokenRepositoryPort refreshTokenRepository,
-                            AuthEventRepositoryPort authEventRepository,
+                            AuthEventRecorder recorder,
                             int maxLoginAttempts,
                             Duration lockDuration) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.refreshTokenRepository = refreshTokenRepository;
-        this.authEventRepository = authEventRepository;
+        this.recorder = recorder;
         this.maxLoginAttempts = maxLoginAttempts;
         this.lockDuration = lockDuration;
     }
@@ -57,7 +54,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
 
         if (!passwordEncoder.matches(command.password(), user.passwordHash())) {
             userRepository.save(user.withFailedLoginAttempt(maxLoginAttempts, lockDuration));
-            record(user.id(), AuthEvent.EventType.LOGIN_FAILED, false);
+            recorder.record(user.id(), AuthEvent.EventType.LOGIN_FAILED, false);
             throw new InvalidCredentialsException();
         }
 
@@ -65,17 +62,8 @@ public class LoginUseCaseImpl implements LoginUseCase {
         AuthTokens tokens = tokenProvider.generateTokens(loggedIn);
         refreshTokenRepository.save(
                 RefreshToken.issued(tokens.refreshToken(), loggedIn.id(), tokens.refreshTokenExpiresAt()));
-        record(loggedIn.id(), AuthEvent.EventType.LOGIN_SUCCESS, true);
+        recorder.record(loggedIn.id(), AuthEvent.EventType.LOGIN_SUCCESS, true);
 
         return new Authentication(loggedIn, tokens);
-    }
-
-    private void record(UUID userId, AuthEvent.EventType type, boolean success) {
-        authEventRepository.save(AuthEvent.builder()
-                .userId(userId)
-                .eventType(type)
-                .success(success)
-                .createdAt(LocalDateTime.now())
-                .build());
     }
 }
