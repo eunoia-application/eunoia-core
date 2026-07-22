@@ -25,6 +25,12 @@ jwt:
   refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:2592000}  # 30 дней
   issuer: ${JWT_ISSUER:service-auth}
 
+# Локаут: после max-attempts неудачных входов — блок на lock-duration-minutes.
+auth:
+  lockout:
+    max-attempts: ${AUTH_MAX_ATTEMPTS:5}
+    lock-duration-minutes: ${AUTH_LOCK_MINUTES:15}
+
 # Регистрация в Eureka (eureka-server слушает 9999). В тесте Eureka отключается — сервис автономен.
 eureka:
   client:

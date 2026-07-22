@@ -105,4 +105,30 @@ class AuthenticationFlowTest {
                 .exchange((request, response) -> response.getStatusCode());
         assertThat(afterLogout.value()).isEqualTo(401);
     }
+
+    @Test
+    void account_locks_after_too_many_failed_logins() {
+        String email = "bob@example.com";
+        client().post().uri("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new RegisterRequest(email, "GoodPass123", "bob_user"))
+                .retrieve()
+                .toBodilessEntity();
+
+        // 5 неверных попыток: каждая 401, пятая доводит счётчик до лимита и блокирует
+        for (int i = 0; i < 5; i++) {
+            HttpStatusCode status = client().post().uri("/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new LoginRequest(email, "wrong-password"))
+                    .exchange((request, response) -> response.getStatusCode());
+            assertThat(status.value()).isEqualTo(401);
+        }
+
+        // теперь даже верный пароль отклоняется — аккаунт заблокирован (403)
+        HttpStatusCode locked = client().post().uri("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new LoginRequest(email, "GoodPass123"))
+                .exchange((request, response) -> response.getStatusCode());
+        assertThat(locked.value()).isEqualTo(403);
+    }
 }

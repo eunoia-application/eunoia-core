@@ -25,7 +25,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC = {
             "/auth/register", "/auth/login", "/auth/refresh",
             "/auth/forgot-password", "/auth/reset-password", "/auth/verify-email",
-            "/.well-known/**", "/actuator/health"
+            "/.well-known/**", "/actuator/health", "/error"
     };
 
     @Bean

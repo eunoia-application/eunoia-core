@@ -29,10 +29,7 @@ public class AuthEventJpaAdapter implements AuthEventRepositoryPort {
     @Transactional
     public AuthEvent save(AuthEvent event) {
         try {
-            AuthEventEntity entity = mapper.toEntity(event);
-            if (entity.getId() == null) {
-                entity.setId(UUID.randomUUID());
-            }
+            AuthEventEntity entity = mapper.toEntity(event); // id сгенерит @GeneratedValue при insert
             if (entity.getCreatedAt() == null) {
                 entity.setCreatedAt(LocalDateTime.now());
             }

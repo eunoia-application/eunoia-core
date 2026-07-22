@@ -15,11 +15,16 @@ spring:
 server:
   port: 7777
 
+# Кто из браузера может стучаться в API (CORS). Dev — фронт на :9000; в проде переопределяем через env.
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:9000}
+
 application:
   api-routes:
-    - id: "service-authorization"
+    - id: "service-auth"
       from: "api/v1/auth"
-      to: "lb://SERVICE-AUTHORIZATION"
+      to: "lb://SERVICE-AUTH"
     - id: "service-user"
       from: "api/v1/user"
       to: "lb://SERVICE-USER"

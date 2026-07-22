@@ -1,11 +1,14 @@
 package ru.eunoia.config;
 
+import java.time.Duration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.eunoia.application.port.in.LoginUseCase;
 import ru.eunoia.application.port.in.LogoutUseCase;
 import ru.eunoia.application.port.in.RefreshTokenUseCase;
 import ru.eunoia.application.port.in.RegisterUseCase;
+import ru.eunoia.application.port.out.AuthEventRepositoryPort;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
@@ -25,8 +28,12 @@ public class UseCaseConfig {
     public LoginUseCase loginUseCase(UserRepositoryPort userRepository,
                                      PasswordEncoderPort passwordEncoder,
                                      TokenProviderPort tokenProvider,
-                                     RefreshTokenRepositoryPort refreshTokenRepository) {
-        return new LoginUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository);
+                                     RefreshTokenRepositoryPort refreshTokenRepository,
+                                     AuthEventRepositoryPort authEventRepository,
+                                     @Value("${auth.lockout.max-attempts:5}") int maxAttempts,
+                                     @Value("${auth.lockout.lock-duration-minutes:15}") long lockMinutes) {
+        return new LoginUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository,
+                authEventRepository, maxAttempts, Duration.ofMinutes(lockMinutes));
     }
 
     @Bean
