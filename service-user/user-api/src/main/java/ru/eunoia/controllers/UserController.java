@@ -6,11 +6,16 @@ import com.eunoia.application.user.model.UserProfile;
 import com.eunoia.application.user.model.UserPublicProfile;
 import com.eunoia.application.user.model.UserSettings;
 import com.eunoia.application.user.model.UserUpdateRequest;
+import java.io.IOException;
 import java.util.UUID;
-import org.springframework.http.HttpStatus;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import ru.eunoia.application.domain.exception.InvalidAvatarException;
+import ru.eunoia.application.domain.model.Avatar;
 import ru.eunoia.application.domain.model.Profile;
 import ru.eunoia.application.port.in.ProfileUseCase;
 import ru.eunoia.mappers.UserApiMapper;
@@ -54,9 +59,24 @@ public class UserController implements UsersApi {
 
     @Override
     public ResponseEntity<UserProfile> uploadAvatar(MultipartFile file) {
-        // TODO M3+: залить файл в блоб-хранилище (S3/MinIO) и проставить avatarUrl.
-        // Пока URL аватара задаётся напрямую через updateCurrentUser (avatarUrl).
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(mapper.toProfile(profiles.uploadAvatar(currentUser.id(), readAvatar(file))));
+    }
+
+    @Override
+    public ResponseEntity<Resource> getUserAvatar(UUID userId) {
+        Avatar avatar = profiles.getAvatar(userId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(avatar.contentType()))
+                .body(new ByteArrayResource(avatar.content()));
+    }
+
+    /** Байты и MIME из multipart. IO-сбой при чтении → 400 (как и невалидный файл). */
+    private Avatar readAvatar(MultipartFile file) {
+        try {
+            return new Avatar(file.getBytes(), file.getContentType());
+        } catch (IOException e) {
+            throw new InvalidAvatarException("Не удалось прочитать файл аватара");
+        }
     }
 
     @Override

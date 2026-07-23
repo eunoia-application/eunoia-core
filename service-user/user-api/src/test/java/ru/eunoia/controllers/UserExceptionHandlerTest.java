@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import ru.eunoia.application.domain.exception.AvatarNotFoundException;
+import ru.eunoia.application.domain.exception.InvalidAvatarException;
 import ru.eunoia.application.domain.exception.ProfileNotFoundException;
 import ru.eunoia.application.domain.exception.ProfilePrivateException;
 
@@ -35,5 +37,23 @@ class UserExceptionHandlerTest {
 
         assertThat(problem.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
         assertThat(problem.getDetail()).isEqualTo("Профиль скрыт: " + userId);
+    }
+
+    @Test
+    void avatarNotFound_mapsTo404_carryingExceptionMessage() {
+        UUID userId = UUID.randomUUID();
+
+        ProblemDetail problem = handler.onAvatarNotFound(new AvatarNotFoundException(userId));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(problem.getDetail()).isEqualTo("Аватар не найден: " + userId);
+    }
+
+    @Test
+    void invalidAvatar_mapsTo400_carryingExceptionMessage() {
+        ProblemDetail problem = handler.onInvalidAvatar(new InvalidAvatarException("Пустой файл аватара"));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(problem.getDetail()).isEqualTo("Пустой файл аватара");
     }
 }

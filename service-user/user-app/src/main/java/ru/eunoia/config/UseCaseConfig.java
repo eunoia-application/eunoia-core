@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.eunoia.application.port.in.ProfileLifecycleUseCase;
 import ru.eunoia.application.port.in.ProfileUseCase;
+import ru.eunoia.application.port.out.AvatarStoragePort;
 import ru.eunoia.application.port.out.ProfileRepositoryPort;
 import ru.eunoia.application.services.ProfileLifecycleUseCaseImpl;
 import ru.eunoia.application.services.ProfileUseCaseImpl;
@@ -13,8 +14,8 @@ import ru.eunoia.application.services.ProfileUseCaseImpl;
 public class UseCaseConfig {
 
     @Bean
-    public ProfileUseCase profileUseCase(ProfileRepositoryPort profiles) {
-        return new ProfileUseCaseImpl(profiles);
+    public ProfileUseCase profileUseCase(ProfileRepositoryPort profiles, AvatarStoragePort avatars) {
+        return new ProfileUseCaseImpl(profiles, avatars);
     }
 
     @Bean

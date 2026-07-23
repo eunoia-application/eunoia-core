@@ -16,6 +16,12 @@ spring:
       ddl-auto: none      # схемой владеет Liquibase
     open-in-view: false
 
+  # Лимит на загрузку аватара (multipart).
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 

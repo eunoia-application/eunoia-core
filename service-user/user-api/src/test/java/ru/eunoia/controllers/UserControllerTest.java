@@ -1,9 +1,11 @@
 package ru.eunoia.controllers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.eunoia.application.user.model.UserDataExport;
@@ -11,16 +13,23 @@ import com.eunoia.application.user.model.UserProfile;
 import com.eunoia.application.user.model.UserPublicProfile;
 import com.eunoia.application.user.model.UserSettings;
 import com.eunoia.application.user.model.UserUpdateRequest;
+import java.io.IOException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import ru.eunoia.application.comand.UpdateProfileCommand;
+import ru.eunoia.application.domain.exception.InvalidAvatarException;
+import ru.eunoia.application.domain.model.Avatar;
 import ru.eunoia.application.domain.model.Profile;
 import ru.eunoia.application.domain.model.ProfileSettings;
 import ru.eunoia.application.port.in.ProfileUseCase;
@@ -157,14 +166,51 @@ class UserControllerTest {
     }
 
     @Test
-    void uploadAvatar_isStub_returns501_andTouchesNoUseCase() {
-        // Заглушка (TODO M3+): файл принимается, но никуда не сохраняется.
+    void uploadAvatar_readsFileBytesIntoAvatar_delegates_andReturns200() throws Exception {
+        byte[] bytes = {1, 2, 3, 4};
         MultipartFile file = mock(MultipartFile.class);
+        Profile updated = sampleProfile();
+        UserProfile mapped = new UserProfile();
+        when(currentUser.id()).thenReturn(USER_ID);
+        when(file.getBytes()).thenReturn(bytes);
+        when(file.getContentType()).thenReturn("image/png");
+        when(profiles.uploadAvatar(eq(USER_ID), any(Avatar.class))).thenReturn(updated);
+        when(mapper.toProfile(updated)).thenReturn(mapped);
 
         ResponseEntity<UserProfile> response = controller.uploadAvatar(file);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_IMPLEMENTED);
-        assertThat(response.getBody()).isNull();
-        verifyNoInteractions(profiles, currentUser, mapper);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isSameAs(mapped);
+        // байты и MIME из multipart уезжают в use case доменным Avatar
+        ArgumentCaptor<Avatar> avatar = ArgumentCaptor.forClass(Avatar.class);
+        verify(profiles).uploadAvatar(eq(USER_ID), avatar.capture());
+        assertThat(avatar.getValue().content()).isEqualTo(bytes);
+        assertThat(avatar.getValue().contentType()).isEqualTo("image/png");
+        verify(mapper).toProfile(updated);
+    }
+
+    @Test
+    void uploadAvatar_fileReadFails_throwsInvalidAvatar() throws Exception {
+        MultipartFile file = mock(MultipartFile.class);
+        // сбой чтения multipart трактуем как невалидный файл (400), а не 500
+        when(file.getBytes()).thenThrow(new IOException("boom"));
+
+        assertThatThrownBy(() -> controller.uploadAvatar(file))
+                .isInstanceOf(InvalidAvatarException.class);
+    }
+
+    @Test
+    void getUserAvatar_returnsBytesAsResource_withDeclaredContentType_and200() {
+        UUID targetId = UUID.randomUUID();
+        byte[] bytes = {10, 20, 30};
+        when(profiles.getAvatar(targetId)).thenReturn(new Avatar(bytes, "image/png"));
+
+        ResponseEntity<Resource> response = controller.getUserAvatar(targetId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
+        assertThat(response.getBody()).isInstanceOf(ByteArrayResource.class);
+        assertThat(((ByteArrayResource) response.getBody()).getByteArray()).isEqualTo(bytes);
+        verify(profiles).getAvatar(targetId);
     }
 }

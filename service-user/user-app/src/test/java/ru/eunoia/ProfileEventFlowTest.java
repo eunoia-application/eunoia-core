@@ -133,6 +133,33 @@ class ProfileEventFlowTest {
         assertThat(pub).isNotNull();
         assertThat(pub.getUsername()).isEqualTo(username);
 
+        // загружаем аватар: multipart, часть "file" c Content-Type image/png (иначе use case отклонит)
+        byte[] png = {1, 2, 3, 4};
+        org.springframework.util.MultiValueMap<String, Object> parts = new org.springframework.util.LinkedMultiValueMap<>();
+        org.springframework.http.HttpHeaders ph = new org.springframework.http.HttpHeaders();
+        ph.setContentType(MediaType.IMAGE_PNG);
+        org.springframework.core.io.Resource res = new org.springframework.core.io.ByteArrayResource(png) {
+            @Override public String getFilename() { return "avatar.png"; }
+        };
+        parts.add("file", new org.springframework.http.HttpEntity<>(res, ph));
+        UserProfile withAvatar = client().post().uri("/users/me/avatar")
+                .header("Authorization", "Bearer " + userId)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(parts)
+                .retrieve().body(UserProfile.class);
+        assertThat(withAvatar).isNotNull();
+        // профилю проставлен url на публичную отдачу /users/{id}/avatar
+        assertThat(withAvatar.getAvatarUrl().toString()).endsWith("/users/" + userId + "/avatar");
+
+        // публичная отдача байтов без токена → 200, image/png, тело равно исходным байтам
+        org.springframework.http.ResponseEntity<byte[]> avatarResponse = client().get()
+                .uri("/users/" + userId + "/avatar")
+                .retrieve()
+                .toEntity(byte[].class);
+        assertThat(avatarResponse.getStatusCode().value()).isEqualTo(200);
+        assertThat(avatarResponse.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
+        assertThat(avatarResponse.getBody()).isEqualTo(png);
+
         // auth опубликовал UserDeleted → профиль исчезает, GET /users/me отдаёт 404
         publish("user.deleted", userId, new UserDeletedEvent(userId, LocalDateTime.now()));
         await().atMost(Duration.ofSeconds(30))
