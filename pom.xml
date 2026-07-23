@@ -32,6 +32,7 @@
         <!-- Boot 4.1 тянет Testcontainers 2.0 (там артефакты переименованы: postgresql →
              testcontainers-postgresql и т.д.). Пинимся на стабильный 1.x, как в референсе. -->
         <testcontainers.version>1.20.4</testcontainers.version>
+        <jacoco.version>0.8.13</jacoco.version>
     </properties>
 
     <profiles>
@@ -96,6 +97,36 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- Покрытие тестами. Замеряем бизнес-код; сгенерённый контракт и entrypoint исключаем.
+                 Отчёт: target/site/jacoco/index.html в каждом модуле после `mvn verify`. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/eunoia/application/auth/**</exclude>
+                        <exclude>**/AuthApplication*</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

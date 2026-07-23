@@ -10,8 +10,8 @@ import ru.eunoia.persistence.entity.UserEntity;
 import ru.eunoia.persistence.repository.UserJpaRepository;
 
 /**
- * JPA-backed outbound adapter for {@link UserRepositoryPort}. Auth owns the user store
- * (Design B). Domain ↔ entity mapping is inline (no MapStruct) to stay runtime-safe.
+ * JPA-адаптер {@link UserRepositoryPort}: auth владеет хранилищем юзеров (Design B).
+ * Маппинг домен ↔ entity вручную. id присваиваем сами — у UserEntity нет @GeneratedValue.
  */
 @Component
 @RequiredArgsConstructor
@@ -27,11 +27,6 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override
     public Optional<User> findByEmail(String email) {
         return jpaRepository.findByEmail(email).map(this::toDomain);
-    }
-
-    @Override
-    public Optional<User> findByUsername(String username) {
-        return jpaRepository.findByUsername(username).map(this::toDomain);
     }
 
     @Override

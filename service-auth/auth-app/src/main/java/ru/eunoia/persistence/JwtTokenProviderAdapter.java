@@ -14,9 +14,8 @@ import ru.eunoia.application.port.out.KeyProviderPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
 
 /**
- * RS256 JWT provider. Signs with the RSA private key ({@link KeyProviderPort}) and stamps the
- * `kid` header so resource servers can pick the right JWK from the published JWKS. TTLs are in
- * seconds; the `type` claim (ACCESS/REFRESH) is enforced on validation.
+ * RS256 JWT: подписывает приватным RSA-ключом ({@link KeyProviderPort}) и ставит `kid` в заголовок,
+ * чтобы resource-server выбрал нужный ключ из JWKS. TTL в секундах; при валидации сверяем claim `type`.
  */
 @Component
 @RequiredArgsConstructor
@@ -55,11 +54,6 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
     }
 
     @Override
-    public boolean validateAccessToken(String token) {
-        return isValidTokenOfType(token, TYPE_ACCESS);
-    }
-
-    @Override
     public boolean validateRefreshToken(String token) {
         return isValidTokenOfType(token, TYPE_REFRESH);
     }
@@ -67,16 +61,6 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
     @Override
     public UUID extractUserId(String token) {
         return UUID.fromString(parse(token).get(CLAIM_USER_ID, String.class));
-    }
-
-    @Override
-    public String extractEmail(String token) {
-        return parse(token).getSubject();
-    }
-
-    @Override
-    public String extractUsername(String token) {
-        return parse(token).get(CLAIM_USERNAME, String.class);
     }
 
     private String buildToken(User user, String type, long ttlSeconds) {
