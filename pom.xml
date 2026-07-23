@@ -20,7 +20,6 @@
         <module>eureka-server</module>
         <module>service-auth</module>
         <module>service-user</module>
-        <module>service-note</module>
     </modules>
 
     <properties>
@@ -33,6 +32,9 @@
              testcontainers-postgresql и т.д.). Пинимся на стабильный 1.x, как в референсе. -->
         <testcontainers.version>1.20.4</testcontainers.version>
         <jacoco.version>0.8.13</jacoco.version>
+        <!-- Контракты OpenAPI из eunoia-oas (GitHub Packages). Lockstep-версия трейна —
+             единый источник для всех сервисов, бампаем здесь. -->
+        <eunoia-oas.version>2.0.0</eunoia-oas.version>
     </properties>
 
     <profiles>
@@ -62,6 +64,23 @@
                 <version>2025.1.2</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- OpenAPI-контракты (eunoia-oas): версию держим централизованно через ${eunoia-oas.version}. -->
+            <dependency>
+                <groupId>com.eunoia.application</groupId>
+                <artifactId>shared-contract</artifactId>
+                <version>${eunoia-oas.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.eunoia.application</groupId>
+                <artifactId>auth-contract</artifactId>
+                <version>${eunoia-oas.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.eunoia.application</groupId>
+                <artifactId>user-contract</artifactId>
+                <version>${eunoia-oas.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

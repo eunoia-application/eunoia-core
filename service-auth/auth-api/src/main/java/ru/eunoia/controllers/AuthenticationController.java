@@ -79,4 +79,10 @@ public class AuthenticationController implements AuthApi {
         resetPasswordUseCase.reset(resetPasswordRequest.getToken(), resetPasswordRequest.getNewPassword());
         return ResponseEntity.noContent().build();
     }
+
+    @Override
+    public ResponseEntity<Void> deleteAccount() {
+        // TODO M3: удалить identity + токены и опубликовать UserDeleted (Kafka) для каскада на service-user
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    }
 }
