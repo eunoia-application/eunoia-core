@@ -34,10 +34,7 @@ spring:
       group-id: service-user
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.use.type.headers: false
-        spring.json.trusted.packages: "ru.eunoia.*"
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 # Регистрация в Eureka. Локально — как localhost (иначе gateway не достучится по LAN-IP).
 eureka:
