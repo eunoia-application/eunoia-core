@@ -1,9 +1,9 @@
 package ru.eunoia.mappers;
 
 import com.eunoia.application.auth.model.AuthResponse;
+import com.eunoia.application.auth.model.AuthUser;
 import com.eunoia.application.auth.model.LoginRequest;
 import com.eunoia.application.auth.model.RegisterRequest;
-import com.eunoia.application.auth.model.UserProfile;
 import org.springframework.stereotype.Component;
 import ru.eunoia.application.comand.LoginCommand;
 import ru.eunoia.application.comand.RegisterCommand;
@@ -12,8 +12,8 @@ import ru.eunoia.application.domain.model.AuthTokens;
 import ru.eunoia.application.domain.model.User;
 
 /**
- * Перевод между DTO контракта и доменом. Профильные поля (аватар, bio, stats, ...) auth не
- * заполняет — они принадлежат service-user; отдаём только то, что знает auth (id, email, username).
+ * Перевод между DTO контракта и доменом. auth отдаёт только слим-идентичность (AuthUser);
+ * полный профиль (имя, аватар, bio, настройки) — за service-user.
  */
 @Component
 public class AuthApiMapper {
@@ -34,18 +34,18 @@ public class AuthApiMapper {
         response.setRefreshToken(tokens.refreshToken());
         response.setTokenType(AuthResponse.TokenTypeEnum.BEARER);
         response.setExpiresIn(tokens.expiresIn());
-        response.setUser(toProfile(authentication.user()));
+        response.setUser(toAuthUser(authentication.user()));
         return response;
     }
 
-    private UserProfile toProfile(User user) {
-        UserProfile profile = new UserProfile();
-        profile.setId(user.id());
-        profile.setEmail(user.email());
-        profile.setUsername(user.username());
-        profile.setEmailVerified(user.emailVerified());
-        profile.setCreatedAt(user.createdAt());
-        profile.setUpdatedAt(user.updatedAt());
-        return profile;
+    private AuthUser toAuthUser(User user) {
+        AuthUser authUser = new AuthUser();
+        authUser.setId(user.id());
+        authUser.setEmail(user.email());
+        authUser.setUsername(user.username());
+        authUser.setEmailVerified(user.emailVerified());
+        authUser.setCreatedAt(user.createdAt());
+        authUser.setUpdatedAt(user.updatedAt());
+        return authUser;
     }
 }

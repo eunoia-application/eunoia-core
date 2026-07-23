@@ -1,0 +1,36 @@
+# Локальная инфраструктура для dev. Postgres поднимаешь сам (локально), здесь — только Kafka.
+# Ключевое: ADVERTISED_LISTENERS = localhost:9092, иначе broker анонсирует внутренний адрес
+# контейнера и клиент с хоста (service-auth/service-user) до него не достучится.
+#
+#   docker compose up -d      # поднять
+#   docker compose down       # остановить (данные в томе сохранятся)
+#   docker compose down -v    # снести вместе с данными
+
+services:
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: eunoia-kafka
+    ports:
+      - "9092:9092"          # то, на что ходят сервисы (KAFKA_BOOTSTRAP=localhost:9092)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Слушаем на всех интерфейсах внутри контейнера, а хосту анонсируем localhost.
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      # Single-node: всё по одной реплике.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Топики создаются на лету при первой публикации (auth шлёт user.registered/user.deleted).
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+volumes:
+  kafka-data:

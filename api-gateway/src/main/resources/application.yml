@@ -26,11 +26,8 @@ application:
       from: "api/v1/auth"
       to: "lb://SERVICE-AUTH"
     - id: "service-user"
-      from: "api/v1/user"
+      from: "api/v1/users"
       to: "lb://SERVICE-USER"
-    - id: "service-note"
-      from: "api/v1/note"
-      to: "lb://SERVICE-NOTE"
 
 
 eureka:

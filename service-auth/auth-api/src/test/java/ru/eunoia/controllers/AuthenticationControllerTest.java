@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import ru.eunoia.application.comand.LoginCommand;
 import ru.eunoia.application.comand.RegisterCommand;
 import ru.eunoia.application.domain.model.Authentication;
+import ru.eunoia.application.port.in.DeleteAccountUseCase;
 import ru.eunoia.application.port.in.ForgotPasswordUseCase;
 import ru.eunoia.application.port.in.LoginUseCase;
 import ru.eunoia.application.port.in.LogoutUseCase;
@@ -53,6 +54,8 @@ class AuthenticationControllerTest {
     private ForgotPasswordUseCase forgotPasswordUseCase;
     @Mock
     private ResetPasswordUseCase resetPasswordUseCase;
+    @Mock
+    private DeleteAccountUseCase deleteAccountUseCase;
     @Mock
     private CurrentUser currentUser;
     @Mock
@@ -159,5 +162,18 @@ class AuthenticationControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(response.getBody()).isNull();
         verify(resetPasswordUseCase).reset("reset-token", "newSecret1");
+    }
+
+    @Test
+    void deleteAccount_usesCurrentUserId_andReturns204() {
+        UUID userId = UUID.randomUUID();
+        when(currentUser.id()).thenReturn(userId);
+
+        ResponseEntity<Void> response = controller.deleteAccount();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getBody()).isNull();
+        verify(currentUser).id();
+        verify(deleteAccountUseCase).delete(userId);
     }
 }

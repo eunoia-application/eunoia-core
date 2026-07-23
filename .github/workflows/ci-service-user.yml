@@ -1,0 +1,35 @@
+name: CI · service-user
+
+# Гоняем только если менялся сам сервис, корневой pom (родитель всех модулей)
+# или общий build-workflow. Иначе — не запускаемся.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'service-user/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-service-user.yml'
+      - '.github/workflows/_build.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'service-user/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-service-user.yml'
+      - '.github/workflows/_build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      module: service-user/user-app
+      label: service-user
+    secrets: inherit

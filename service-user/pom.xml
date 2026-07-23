@@ -7,14 +7,62 @@
         <groupId>ru.eunoia</groupId>
         <artifactId>eunoia-core</artifactId>
         <version>1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <groupId>ru.eunoia.user</groupId>
     <artifactId>service-user</artifactId>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>user-api</module>
+        <module>user-logic</module>
+        <module>user-app</module>
+    </modules>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <swagger-annotations.version>2.2.25</swagger-annotations.version>
+        <openapi-generator.version>7.10.0</openapi-generator.version>
     </properties>
+
+    <!--
+        Без <dependencies> на уровне агрегатора — каждый модуль объявляет своё, чтобы
+        user-logic оставался чистым ядром. Версии контрактов — из корневого pom
+        (${eunoia-oas.version}); здесь пиним только user-специфичные не-Boot артефакты.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>ru.eunoia.user.logic</groupId>
+                <artifactId>user-logic</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ru.eunoia.user.api</groupId>
+                <artifactId>user-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations</artifactId>
+                <version>${swagger-annotations.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
 </project>

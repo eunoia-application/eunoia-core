@@ -42,6 +42,7 @@ public class AuthEvent {
         ACCOUNT_UNLOCKED,
         ACCOUNT_ACTIVATED,
         ACCOUNT_DEACTIVATED,
+        ACCOUNT_DELETED,
 
         // Безопасность
         SUSPICIOUS_ACTIVITY,

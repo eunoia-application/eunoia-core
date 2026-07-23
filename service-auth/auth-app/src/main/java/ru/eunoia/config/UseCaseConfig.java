@@ -4,6 +4,7 @@ import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.eunoia.application.port.in.DeleteAccountUseCase;
 import ru.eunoia.application.port.in.ForgotPasswordUseCase;
 import ru.eunoia.application.port.in.LoginUseCase;
 import ru.eunoia.application.port.in.LogoutUseCase;
@@ -13,12 +14,14 @@ import ru.eunoia.application.port.in.ResetPasswordUseCase;
 import ru.eunoia.application.port.in.VerifyEmailUseCase;
 import ru.eunoia.application.port.out.AuthEventRepositoryPort;
 import ru.eunoia.application.port.out.EmailSenderPort;
+import ru.eunoia.application.port.out.EventPublisherPort;
 import ru.eunoia.application.port.out.OneTimeTokenRepositoryPort;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
 import ru.eunoia.application.port.out.UserRepositoryPort;
 import ru.eunoia.application.services.AuthEventRecorder;
+import ru.eunoia.application.services.DeleteAccountUseCaseImpl;
 import ru.eunoia.application.services.ForgotPasswordUseCaseImpl;
 import ru.eunoia.application.services.LoginUseCaseImpl;
 import ru.eunoia.application.services.LogoutUseCaseImpl;
@@ -58,10 +61,11 @@ public class UseCaseConfig {
                                            RefreshTokenRepositoryPort refreshTokenRepository,
                                            OneTimeTokenRepositoryPort oneTimeTokenRepository,
                                            EmailSenderPort emailSender,
+                                           EventPublisherPort eventPublisher,
                                            AuthEventRecorder recorder,
                                            @Value("${auth.token.email-verification-hours:24}") long verifyHours) {
         return new RegisterUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository,
-                oneTimeTokenRepository, emailSender, recorder, Duration.ofHours(verifyHours));
+                oneTimeTokenRepository, emailSender, eventPublisher, recorder, Duration.ofHours(verifyHours));
     }
 
     @Bean
@@ -76,6 +80,14 @@ public class UseCaseConfig {
     public LogoutUseCase logoutUseCase(RefreshTokenRepositoryPort refreshTokenRepository,
                                        AuthEventRecorder recorder) {
         return new LogoutUseCaseImpl(refreshTokenRepository, recorder);
+    }
+
+    @Bean
+    public DeleteAccountUseCase deleteAccountUseCase(UserRepositoryPort userRepository,
+                                                    RefreshTokenRepositoryPort refreshTokenRepository,
+                                                    EventPublisherPort eventPublisher,
+                                                    AuthEventRecorder recorder) {
+        return new DeleteAccountUseCaseImpl(userRepository, refreshTokenRepository, eventPublisher, recorder);
     }
 
     @Bean

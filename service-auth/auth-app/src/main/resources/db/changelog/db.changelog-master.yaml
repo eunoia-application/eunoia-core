@@ -1,0 +1,163 @@
+# Схема БД auth. Пока одна таблица users (учётки); auth_events добавим в M2 вместе с аудитом.
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-users
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: email
+                  type: varchar(320)
+                  constraints: { nullable: false, unique: true }
+              - column:
+                  name: username
+                  type: varchar(100)
+              - column:
+                  name: password_hash
+                  type: varchar(255)
+                  constraints: { nullable: false }
+              - column:
+                  name: email_verified
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+              - column:
+                  name: active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints: { nullable: false }
+              - column:
+                  name: locked
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+              - column:
+                  name: failed_login_attempts
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+              - column:
+                  name: locked_until
+                  type: timestamp
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints: { nullable: false }
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: last_login_at
+                  type: timestamp
+        - createIndex:
+            tableName: users
+            indexName: idx_users_username
+            columns:
+              - column:
+                  name: username
+
+  - changeSet:
+      id: 002-create-refresh-tokens
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: refresh_tokens
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints: { nullable: false }
+              - column:
+                  name: token_hash
+                  type: varchar(64)
+                  constraints: { nullable: false, unique: true }
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints: { nullable: false }
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints: { nullable: false }
+              - column:
+                  name: revoked
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+              - column:
+                  name: revoked_at
+                  type: timestamp
+        - createIndex:
+            tableName: refresh_tokens
+            indexName: idx_refresh_tokens_user_id
+            columns:
+              - column:
+                  name: user_id
+
+  - changeSet:
+      id: 003-create-auth-events
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: auth_events
+            columns:
+              - column: { name: id, type: uuid, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: event_type, type: varchar(50), constraints: { nullable: false } }
+              - column: { name: ip_address, type: varchar(45) }
+              - column: { name: user_agent, type: varchar(500) }
+              - column: { name: device_id, type: varchar(100) }
+              - column: { name: session_id, type: varchar(100) }
+              - column: { name: location, type: varchar(100) }
+              - column: { name: details, type: jsonb }
+              - column: { name: success, type: boolean, constraints: { nullable: false } }
+              - column: { name: error_message, type: varchar(1000) }
+              - column: { name: error_code, type: varchar(50) }
+              - column: { name: response_time_ms, type: bigint }
+              - column: { name: resource, type: varchar(200) }
+              - column: { name: http_method, type: varchar(10) }
+              - column: { name: correlation_id, type: varchar(100) }
+              - column: { name: service_version, type: varchar(20) }
+              - column: { name: environment, type: varchar(20) }
+              - column: { name: created_at, type: timestamp, constraints: { nullable: false } }
+        - createIndex:
+            tableName: auth_events
+            indexName: idx_auth_events_user_id
+            columns:
+              - column: { name: user_id }
+        - createIndex:
+            tableName: auth_events
+            indexName: idx_auth_events_event_type
+            columns:
+              - column: { name: event_type }
+
+  - changeSet:
+      id: 004-create-one-time-tokens
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: one_time_tokens
+            columns:
+              - column: { name: id, type: uuid, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: purpose, type: varchar(30), constraints: { nullable: false } }
+              - column: { name: token_hash, type: varchar(64), constraints: { nullable: false, unique: true } }
+              - column: { name: created_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: expires_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: used, type: boolean, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: used_at, type: timestamp }
+        - createIndex:
+            tableName: one_time_tokens
+            indexName: idx_one_time_tokens_user_id
+            columns:
+              - column: { name: user_id }

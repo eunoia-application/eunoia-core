@@ -8,7 +8,7 @@ target/
 *.iws
 *.iml
 *.ipr
-*log
+*.log
 .rdb
 ### Eclipse ###
 .apt_generated

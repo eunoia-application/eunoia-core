@@ -26,6 +26,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.eunoia.application.port.out.EmailSenderPort;
+import ru.eunoia.application.port.out.EventPublisherPort;
 
 /**
  * End-to-end проверка auth на реальном Postgres (Testcontainers).
@@ -215,6 +216,13 @@ class AuthenticationFlowTest {
         @Primary
         CapturingEmailSender capturingEmailSender() {
             return new CapturingEmailSender();
+        }
+
+        // Kafka в интеграционном тесте не поднимаем — публикацию событий гасим.
+        @Bean
+        @Primary
+        EventPublisherPort noopEventPublisher() {
+            return event -> { };
         }
     }
 

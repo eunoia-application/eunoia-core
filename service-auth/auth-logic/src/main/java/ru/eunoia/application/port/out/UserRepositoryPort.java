@@ -17,4 +17,7 @@ public interface UserRepositoryPort {
     boolean existsByEmail(String email);
 
     User save(User user);
+
+    /** Удалить учётку (право на забвение). FK в схеме нет — токены/аудит живут своей жизнью. */
+    void deleteById(UUID id);
 }

@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import ru.eunoia.application.port.in.DeleteAccountUseCase;
 import ru.eunoia.application.port.in.ForgotPasswordUseCase;
 import ru.eunoia.application.port.in.LoginUseCase;
 import ru.eunoia.application.port.in.LogoutUseCase;
@@ -35,6 +36,7 @@ public class AuthenticationController implements AuthApi {
     private final VerifyEmailUseCase verifyEmailUseCase;
     private final ForgotPasswordUseCase forgotPasswordUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
+    private final DeleteAccountUseCase deleteAccountUseCase;
     private final CurrentUser currentUser;
     private final AuthApiMapper mapper;
 
@@ -77,6 +79,12 @@ public class AuthenticationController implements AuthApi {
     @Override
     public ResponseEntity<Void> resetPassword(ResetPasswordRequest resetPasswordRequest) {
         resetPasswordUseCase.reset(resetPasswordRequest.getToken(), resetPasswordRequest.getNewPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> deleteAccount() {
+        deleteAccountUseCase.delete(currentUser.id());
         return ResponseEntity.noContent().build();
     }
 }

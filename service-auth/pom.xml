@@ -26,7 +26,6 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <swagger-annotations.version>2.2.25</swagger-annotations.version>
         <openapi-generator.version>7.10.0</openapi-generator.version>
-        <eunoia-oas.version>1.0.0</eunoia-oas.version>
     </properties>
 
     <!--
@@ -81,17 +80,6 @@
                 <groupId>io.swagger.core.v3</groupId>
                 <artifactId>swagger-annotations</artifactId>
                 <version>${swagger-annotations.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.eunoia.application</groupId>
-                <artifactId>shared-contract</artifactId>
-                <version>${eunoia-oas.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.eunoia.application</groupId>
-                <artifactId>auth-contract</artifactId>
-                <version>${eunoia-oas.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
