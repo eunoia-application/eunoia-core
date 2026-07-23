@@ -3,6 +3,7 @@ package ru.eunoia.application.services;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import ru.eunoia.application.comand.RegisterCommand;
+import ru.eunoia.application.domain.event.UserRegistered;
 import ru.eunoia.application.domain.exception.UserAlreadyExistsException;
 import ru.eunoia.application.domain.model.AuthEvent;
 import ru.eunoia.application.domain.model.Authentication;
@@ -12,6 +13,7 @@ import ru.eunoia.application.domain.model.RefreshToken;
 import ru.eunoia.application.domain.model.User;
 import ru.eunoia.application.port.in.RegisterUseCase;
 import ru.eunoia.application.port.out.EmailSenderPort;
+import ru.eunoia.application.port.out.EventPublisherPort;
 import ru.eunoia.application.port.out.OneTimeTokenRepositoryPort;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
@@ -19,8 +21,9 @@ import ru.eunoia.application.port.out.TokenProviderPort;
 import ru.eunoia.application.port.out.UserRepositoryPort;
 
 /**
- * Регистрация: проверяем email, хешируем пароль, сохраняем юзера, выдаём токены и пишем REGISTRATION_SUCCESS.
- * Следом шлём письмо с одноразовым токеном для подтверждения почты (EMAIL_VERIFICATION_SENT).
+ * Регистрация: проверяем email, хешируем пароль, сохраняем юзера, выдаём токены (REGISTRATION_SUCCESS),
+ * шлём письмо подтверждения (EMAIL_VERIFICATION_SENT) и публикуем UserRegistered — по нему service-user
+ * заводит профиль.
  */
 public class RegisterUseCaseImpl implements RegisterUseCase {
 
@@ -30,6 +33,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private final RefreshTokenRepositoryPort refreshTokenRepository;
     private final OneTimeTokenRepositoryPort oneTimeTokenRepository;
     private final EmailSenderPort emailSender;
+    private final EventPublisherPort eventPublisher;
     private final AuthEventRecorder recorder;
     private final Duration emailVerificationTtl;
 
@@ -39,6 +43,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
                                RefreshTokenRepositoryPort refreshTokenRepository,
                                OneTimeTokenRepositoryPort oneTimeTokenRepository,
                                EmailSenderPort emailSender,
+                               EventPublisherPort eventPublisher,
                                AuthEventRecorder recorder,
                                Duration emailVerificationTtl) {
         this.userRepository = userRepository;
@@ -47,6 +52,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
         this.refreshTokenRepository = refreshTokenRepository;
         this.oneTimeTokenRepository = oneTimeTokenRepository;
         this.emailSender = emailSender;
+        this.eventPublisher = eventPublisher;
         this.recorder = recorder;
         this.emailVerificationTtl = emailVerificationTtl;
     }
@@ -67,6 +73,8 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
         recorder.record(saved.id(), AuthEvent.EventType.REGISTRATION_SUCCESS, true);
 
         sendEmailVerification(saved);
+        eventPublisher.publish(
+                new UserRegistered(saved.id(), saved.email(), saved.username(), LocalDateTime.now()));
 
         return new Authentication(saved, tokens);
     }

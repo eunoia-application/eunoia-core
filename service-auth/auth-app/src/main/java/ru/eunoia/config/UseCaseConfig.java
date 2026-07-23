@@ -13,6 +13,7 @@ import ru.eunoia.application.port.in.ResetPasswordUseCase;
 import ru.eunoia.application.port.in.VerifyEmailUseCase;
 import ru.eunoia.application.port.out.AuthEventRepositoryPort;
 import ru.eunoia.application.port.out.EmailSenderPort;
+import ru.eunoia.application.port.out.EventPublisherPort;
 import ru.eunoia.application.port.out.OneTimeTokenRepositoryPort;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
@@ -58,10 +59,11 @@ public class UseCaseConfig {
                                            RefreshTokenRepositoryPort refreshTokenRepository,
                                            OneTimeTokenRepositoryPort oneTimeTokenRepository,
                                            EmailSenderPort emailSender,
+                                           EventPublisherPort eventPublisher,
                                            AuthEventRecorder recorder,
                                            @Value("${auth.token.email-verification-hours:24}") long verifyHours) {
         return new RegisterUseCaseImpl(userRepository, passwordEncoder, tokenProvider, refreshTokenRepository,
-                oneTimeTokenRepository, emailSender, recorder, Duration.ofHours(verifyHours));
+                oneTimeTokenRepository, emailSender, eventPublisher, recorder, Duration.ofHours(verifyHours));
     }
 
     @Bean

@@ -20,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.eunoia.application.comand.RegisterCommand;
+import ru.eunoia.application.domain.event.UserRegistered;
 import ru.eunoia.application.domain.exception.UserAlreadyExistsException;
 import ru.eunoia.application.domain.model.AuthEvent;
 import ru.eunoia.application.domain.model.AuthTokens;
@@ -28,6 +29,7 @@ import ru.eunoia.application.domain.model.OneTimeToken;
 import ru.eunoia.application.domain.model.RefreshToken;
 import ru.eunoia.application.domain.model.User;
 import ru.eunoia.application.port.out.EmailSenderPort;
+import ru.eunoia.application.port.out.EventPublisherPort;
 import ru.eunoia.application.port.out.OneTimeTokenRepositoryPort;
 import ru.eunoia.application.port.out.PasswordEncoderPort;
 import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
@@ -57,6 +59,8 @@ class RegisterUseCaseImplTest {
     @Mock
     private EmailSenderPort emailSender;
     @Mock
+    private EventPublisherPort eventPublisher;
+    @Mock
     private AuthEventRecorder recorder;
 
     private RegisterUseCaseImpl useCase;
@@ -64,7 +68,7 @@ class RegisterUseCaseImplTest {
     @BeforeEach
     void setUp() {
         useCase = new RegisterUseCaseImpl(userRepository, passwordEncoder, tokenProvider,
-                refreshTokenRepository, oneTimeTokenRepository, emailSender, recorder, EMAIL_TTL);
+                refreshTokenRepository, oneTimeTokenRepository, emailSender, eventPublisher, recorder, EMAIL_TTL);
     }
 
     private static User savedUser() {
@@ -117,6 +121,12 @@ class RegisterUseCaseImplTest {
         verify(recorder).record(USER_ID, AuthEvent.EventType.REGISTRATION_SUCCESS, true);
         verify(recorder).record(USER_ID, AuthEvent.EventType.EMAIL_VERIFICATION_SENT, true);
         verifyNoMoreInteractions(recorder);
+
+        ArgumentCaptor<UserRegistered> event = ArgumentCaptor.forClass(UserRegistered.class);
+        verify(eventPublisher).publish(event.capture());
+        assertThat(event.getValue().userId()).isEqualTo(USER_ID);
+        assertThat(event.getValue().email()).isEqualTo(EMAIL);
+        assertThat(event.getValue().username()).isEqualTo(USERNAME);
     }
 
     @Test
@@ -128,6 +138,6 @@ class RegisterUseCaseImplTest {
 
         verify(userRepository, never()).save(any());
         verifyNoInteractions(passwordEncoder, tokenProvider, refreshTokenRepository,
-                oneTimeTokenRepository, emailSender, recorder);
+                oneTimeTokenRepository, emailSender, eventPublisher, recorder);
     }
 }

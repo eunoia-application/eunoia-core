@@ -19,6 +19,13 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
+  # Публикуем доменные события (UserRegistered / UserDeleted) как JSON.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 # JWT подписывается RS256; ключ сервис генерит сам. Здесь — только время жизни (секунды) и issuer.
 jwt:
   access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600}       # 1 час
