@@ -3,15 +3,28 @@ spring:
     name: api-gateway
   liquibase:
     enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # gateway проверяет токены по публичному ключу auth (JWKS). Локально — прямой адрес;
+          # lb:// декодер не понимает (это схема роутинга), а issuer-uri тянет OIDC-discovery на старте.
+          # Load-balanced JWKS через Eureka — это M5.
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
 server:
   port: 7777
 
+# Кто из браузера может стучаться в API (CORS). Dev — фронт на :9000; в проде переопределяем через env.
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:9000}
+
 application:
   api-routes:
-    - id: "service-authorization"
+    - id: "service-auth"
       from: "api/v1/auth"
-      to: "lb://SERVICE-AUTHORIZATION"
+      to: "lb://SERVICE-AUTH"
     - id: "service-user"
       from: "api/v1/user"
       to: "lb://SERVICE-USER"

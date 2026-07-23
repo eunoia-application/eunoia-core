@@ -1,0 +1,68 @@
+# Общая логика сборки одного модуля. Вызывается per-module workflow'ами (workflow_call),
+# чтобы не дублировать setup. Собирает и проверяет только указанный модуль (+ его зависимости).
+name: build-module
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        description: "Maven -pl цель, напр. service-auth/auth-app"
+        required: true
+        type: string
+      label:
+        description: "Короткое имя модуля (для имён джобы и артефактов)"
+        required: true
+        type: string
+
+env:
+  MAVEN_ARGS: "-B -ntp -Dstyle.color=always"
+
+jobs:
+  build:
+    name: build ${{ inputs.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Ryuk (уборщик Testcontainers) на GitHub-раннере иногда мешает старту Postgres;
+      # контейнеры чистит JVM shutdown hook. И пропускаем стартовую пробу Docker-сокета.
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+      TESTCONTAINERS_CHECKS_DISABLE: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      # setup-java генерит ~/.m2/settings.xml с server-id=github. Контракт (shared/auth) —
+      # публичные GitHub Packages, читаются встроенным GITHUB_TOKEN. server-id ОБЯЗАН
+      # совпадать с <id>github</id> в auth-api/pom.xml.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: github
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+
+      # -pl <module> -am: собираем и проверяем только модуль и то, от чего он зависит.
+      - name: Build + verify (${{ inputs.module }})
+        run: mvn $MAVEN_ARGS -pl ${{ inputs.module }} -am verify
+        env:
+          MAVEN_USERNAME: ${{ github.actor }}
+          MAVEN_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ inputs.label }}
+          path: '**/target/surefire-reports/**'
+          retention-days: 7
+
+      - name: Upload JaCoCo coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-${{ inputs.label }}
+          path: '**/target/site/jacoco/**'
+          if-no-files-found: ignore
+          retention-days: 7

@@ -80,20 +80,4 @@ public class AuthEvent {
     private String environment;
 
     private LocalDateTime createdAt;
-
-    // Дополнительные методы
-    public boolean isSuccessful() {
-        return success;
-    }
-
-    public boolean isFailure() {
-        return !success;
-    }
-
-    public boolean isSecurityEvent() {
-        return eventType == EventType.SUSPICIOUS_ACTIVITY ||
-                eventType == EventType.BRUTE_FORCE_ATTEMPT ||
-                eventType == EventType.ACCOUNT_LOCKED;
-    }
-
 }

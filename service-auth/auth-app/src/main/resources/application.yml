@@ -1,11 +1,54 @@
+server:
+  port: ${SERVER_PORT:8081}
+
 spring:
   application:
     name: service-auth
 
-server:
-  port: 8081
+  # БД auth: хранит учётки (Design B). Профиль — в service-user.
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${DB_USERNAME:auth_db}
+    password: ${DB_PASSWORD:auth_password}
 
+  jpa:
+    hibernate:
+      ddl-auto: none      # схемой владеет Liquibase, Hibernate её не трогает
+    open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+# JWT подписывается RS256; ключ сервис генерит сам. Здесь — только время жизни (секунды) и issuer.
+jwt:
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600}       # 1 час
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:2592000}  # 30 дней
+  issuer: ${JWT_ISSUER:service-auth}
+
+# Локаут: после max-attempts неудачных входов — блок на lock-duration-minutes.
+auth:
+  lockout:
+    max-attempts: ${AUTH_MAX_ATTEMPTS:5}
+    lock-duration-minutes: ${AUTH_LOCK_MINUTES:15}
+  # TTL одноразовых токенов email-флоу (подтверждение почты / сброс пароля).
+  token:
+    email-verification-hours: ${AUTH_VERIFY_TOKEN_HOURS:24}
+    password-reset-minutes: ${AUTH_RESET_TOKEN_MINUTES:30}
+
+# Регистрация в Eureka (eureka-server слушает 9999). В тесте Eureka отключается — сервис автономен.
 eureka:
   client:
+    enabled: ${EUREKA_ENABLED:true}
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVICE_URL:http://localhost:9999/eureka/}
+  instance:
+    # Локально регистрируемся как localhost — иначе Eureka отдаёт LAN-IP (10.x), куда gateway не достучится.
+    # В проде переопределяем EUREKA_INSTANCE_HOSTNAME на реальный хост/имя контейнера.
+    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

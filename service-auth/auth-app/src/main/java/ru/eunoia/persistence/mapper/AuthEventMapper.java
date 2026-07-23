@@ -3,7 +3,7 @@ package ru.eunoia.persistence.mapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import ru.eunoia.application.domain.model.AuthEvent;
-import ru.eunoia.application.domain.model.entity.AuthEventEntity;
+import ru.eunoia.persistence.entity.AuthEventEntity;
 
 @Mapper(componentModel = "spring")
 public interface AuthEventMapper {

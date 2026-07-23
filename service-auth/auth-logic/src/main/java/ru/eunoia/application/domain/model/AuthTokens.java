@@ -1,25 +1,22 @@
 package ru.eunoia.application.domain.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AuthTokens {
-    private String accessToken;
-    private String refreshToken;
-    @Builder.Default
-    private String tokenType = "Bearer";
-    private Integer expiresIn;
-    private UUID userId;
-    private LocalDateTime issuedAt;
-    private LocalDateTime accessTokenExpiresAt;
-    private LocalDateTime refreshTokenExpiresAt;
+/**
+ * Свежевыданная пара access + refresh токенов с метаданными. Неизменяемый value object;
+ * сами строки токенов делает адаптер {@code TokenProviderPort}.
+ */
+public record AuthTokens(
+        String accessToken,
+        String refreshToken,
+        String tokenType,
+        int expiresIn,
+        UUID userId,
+        LocalDateTime issuedAt,
+        LocalDateTime accessTokenExpiresAt,
+        LocalDateTime refreshTokenExpiresAt
+) {
+
+    public static final String BEARER = "Bearer";
 }

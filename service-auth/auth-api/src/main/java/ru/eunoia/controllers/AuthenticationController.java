@@ -8,48 +8,75 @@ import com.eunoia.application.auth.model.RefreshTokenRequest;
 import com.eunoia.application.auth.model.RegisterRequest;
 import com.eunoia.application.auth.model.ResetPasswordRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
-import ru.eunoia.interactors.AuthenticationInteractor;
+import ru.eunoia.application.port.in.ForgotPasswordUseCase;
+import ru.eunoia.application.port.in.LoginUseCase;
+import ru.eunoia.application.port.in.LogoutUseCase;
+import ru.eunoia.application.port.in.RefreshTokenUseCase;
+import ru.eunoia.application.port.in.RegisterUseCase;
+import ru.eunoia.application.port.in.ResetPasswordUseCase;
+import ru.eunoia.application.port.in.VerifyEmailUseCase;
+import ru.eunoia.mappers.AuthApiMapper;
+import ru.eunoia.security.CurrentUser;
 
+/**
+ * Веб-адаптер auth: реализует сгенерённый AuthApi и делегирует в use case'ы.
+ */
 @RestController
 @RequiredArgsConstructor
 public class AuthenticationController implements AuthApi {
 
-    private final AuthenticationInteractor interactor;
-
-    @Override
-    public ResponseEntity<Void> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
-        return null;
-    }
+    private final LoginUseCase loginUseCase;
+    private final RegisterUseCase registerUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
+    private final LogoutUseCase logoutUseCase;
+    private final VerifyEmailUseCase verifyEmailUseCase;
+    private final ForgotPasswordUseCase forgotPasswordUseCase;
+    private final ResetPasswordUseCase resetPasswordUseCase;
+    private final CurrentUser currentUser;
+    private final AuthApiMapper mapper;
 
     @Override
     public ResponseEntity<AuthResponse> login(LoginRequest loginRequest) {
-        return null;
-    }
-
-    @Override
-    public ResponseEntity<Void> logout() {
-        return null;
-    }
-
-    @Override
-    public ResponseEntity<AuthResponse> refreshToken(RefreshTokenRequest refreshTokenRequest) {
-        return null;
+        var authentication = loginUseCase.login(mapper.toCommand(loginRequest));
+        return ResponseEntity.ok(mapper.toResponse(authentication));
     }
 
     @Override
     public ResponseEntity<AuthResponse> register(RegisterRequest registerRequest) {
-        return null;
+        var authentication = registerUseCase.register(mapper.toCommand(registerRequest));
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(authentication));
     }
 
     @Override
-    public ResponseEntity<Void> resetPassword(ResetPasswordRequest resetPasswordRequest) {
-        return null;
+    public ResponseEntity<AuthResponse> refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        var authentication = refreshTokenUseCase.refresh(refreshTokenRequest.getRefreshToken());
+        return ResponseEntity.ok(mapper.toResponse(authentication));
+    }
+
+    @Override
+    public ResponseEntity<Void> logout() {
+        logoutUseCase.logout(currentUser.id());
+        return ResponseEntity.noContent().build();
     }
 
     @Override
     public ResponseEntity<Void> verifyEmail(String token) {
-        return null;
+        verifyEmailUseCase.verify(token);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
+        forgotPasswordUseCase.requestReset(forgotPasswordRequest.getEmail());
+        return ResponseEntity.noContent().build(); // 204 всегда — не раскрываем, есть ли аккаунт
+    }
+
+    @Override
+    public ResponseEntity<Void> resetPassword(ResetPasswordRequest resetPasswordRequest) {
+        resetPasswordUseCase.reset(resetPasswordRequest.getToken(), resetPasswordRequest.getNewPassword());
+        return ResponseEntity.noContent().build();
     }
 }

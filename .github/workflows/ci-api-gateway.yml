@@ -1,0 +1,33 @@
+name: CI · api-gateway
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'api-gateway/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-api-gateway.yml'
+      - '.github/workflows/_build.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'api-gateway/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-api-gateway.yml'
+      - '.github/workflows/_build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      module: api-gateway
+      label: api-gateway
+    secrets: inherit

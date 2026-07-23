@@ -14,12 +14,7 @@
     <artifactId>auth-api</artifactId>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jjwt.version>0.12.6</jjwt.version>
-        <version.openapi-generator>6.2.0</version.openapi-generator>
-        <auth-contract.version>1.0.0</auth-contract.version>
     </properties>
 
     <repositories>
@@ -27,12 +22,8 @@
             <id>github</id>
             <name>GitHub Packages</name>
             <url>https://maven.pkg.github.com/eunoia-application/eunoia-oas</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
         </repository>
     </repositories>
 
@@ -40,158 +31,140 @@
         <dependency>
             <groupId>ru.eunoia.auth.logic</groupId>
             <artifactId>auth-logic</artifactId>
-            <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
 
+        <!-- Contracts (provided): yaml is unpacked and code is generated from it -->
         <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <version>6.0.0</version>
+            <groupId>com.eunoia.application</groupId>
+            <artifactId>shared-contract</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.eunoia.application</groupId>
+            <artifactId>auth-contract</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Required by the generated Spring interfaces + models -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations</artifactId>
+        </dependency>
+
+        <!-- MapStruct mappers (processor stays off until M1) -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.eunoia.application</groupId>
-            <artifactId>auth-contract</artifactId>
-            <version>${auth-contract.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- 1. Генерируем Java код из OpenAPI контракта -->
+            <!-- target/generated-sources/openapi/... as a source root -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>add-openapi-generated-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Unpack shared.yaml + auth-api.yaml into one dir so $ref to shared resolves -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-openapi-specs</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>unpack-dependencies</goal></goals>
+                        <configuration>
+                            <includeGroupIds>com.eunoia.application</includeGroupIds>
+                            <includeArtifactIds>shared-contract,auth-contract</includeArtifactIds>
+                            <includes>*.yaml</includes>
+                            <outputDirectory>${project.build.directory}/openapi-spec</outputDirectory>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                            <overWriteReleases>true</overWriteReleases>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate AuthApi + DTOs (shared models generated into the same modelPackage) -->
             <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
-                <version>7.5.0</version>
+                <version>${openapi-generator.version}</version>
                 <executions>
                     <execution>
                         <id>generate-auth-api</id>
                         <phase>generate-sources</phase>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
+                        <goals><goal>generate</goal></goals>
                         <configuration>
-                            <inputSpec>
-                                jar:file:${user.home}/.m2/repository/com/eunoia/application/auth-contract/${auth-contract.version}/auth-contract-${auth-contract.version}.jar!/auth-api.yaml
-                            </inputSpec>
-
-                            <generatorName>spring</generatorName>
-                            <apiPackage>com.eunoia.application.auth.api</apiPackage>
-                            <modelPackage>com.eunoia.application.auth.model</modelPackage>
-                            <supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
-                            <output>${project.build.directory}/generated-sources/openapi</output>
-                            <addCompileSourceRoot>true</addCompileSourceRoot>
-                            <typeMappings>
-                                <typeMapping>OffsetDateTime=LocalDateTime</typeMapping>
-                            </typeMappings>
-                            <importMappings>
-                                <importMapping>java.time.OffsetDateTime=java.time.LocalDateTime</importMapping>
-                            </importMappings>
-
-                            <!-- Конфигурация Spring Boot 3 (как в продакшене) -->
-                            <configOptions>
-                                <useTags>true</useTags>
-                                <dateLibrary>java8-localdatetime</dateLibrary>
-                                <interfaceOnly>true</interfaceOnly>
-                                <skipDefaultInterface>true</skipDefaultInterface>
-                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
-                                <useSpringBoot3>true</useSpringBoot3>
-                                <useBeanValidation>true</useBeanValidation>
-                                <performBeanValidation>true</performBeanValidation>
-                                <useResponseEntity>true</useResponseEntity>
-                                <documentationProvider>springdoc</documentationProvider>
-                                <singleContentTypes>true</singleContentTypes>
-                                <skipValidateSpec>true</skipValidateSpec>
-                            </configOptions>
+                            <inputSpec>${project.build.directory}/openapi-spec/auth-api.yaml</inputSpec>
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-
-            <!-- 4. Компилятор с поддержкой Lombok (если используется) -->
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
+                    <generatorName>spring</generatorName>
+                    <library>spring-boot</library>
+                    <apiPackage>com.eunoia.application.auth.api</apiPackage>
+                    <modelPackage>com.eunoia.application.auth.model</modelPackage>
+                    <invokerPackage>com.eunoia.application.auth</invokerPackage>
+                    <generateApiTests>false</generateApiTests>
+                    <generateApiDocumentation>false</generateApiDocumentation>
+                    <generateModelTests>false</generateModelTests>
+                    <generateModelDocumentation>false</generateModelDocumentation>
+                    <generateSupportingFiles>false</generateSupportingFiles>
+                    <configOptions>
+                        <interfaceOnly>true</interfaceOnly>
+                        <useSpringBoot3>true</useSpringBoot3>
+                        <useJakartaEe>true</useJakartaEe>
+                        <useTags>true</useTags>
+                        <useResponseEntity>true</useResponseEntity>
+                        <dateLibrary>java8-localdatetime</dateLibrary>
+                        <openApiNullable>false</openApiNullable>
+                        <serializationLibrary>jackson</serializationLibrary>
+                        <skipDefaultInterface>true</skipDefaultInterface>
+                        <useBeanValidation>true</useBeanValidation>
+                    </configOptions>
                 </configuration>
-            </plugin>
-
-            <!-- 5. ОПЦИОНАЛЬНО: Диагностический плагин для проверки -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>check-jar-path</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>bash</executable>
-                            <arguments>
-                                <argument>-c</argument>
-                                <argument>
-                                    echo "=== Проверка пути к JAR ==="
-                                    JAR_PATH="${settings.localRepository}/com/eunoia/application/auth-contract/${auth-contract.version}/auth-contract-${auth-contract.version}.jar"
-                                    echo "Ожидаемый путь: $JAR_PATH"
-
-                                    if [ -f "$JAR_PATH" ]; then
-                                    echo "✅ JAR найден"
-                                    echo "Размер: $(stat -f%z "$JAR_PATH") байт"
-                                    echo "Содержимое:"
-                                    jar tf "$JAR_PATH" | grep -i "yaml" || echo "YAML файлы не найдены"
-                                    else
-                                    echo "❌ JAR не найден"
-                                    echo "Поиск в локальном репозитории:"
-                                    find ~/.m2/repository -name "*auth-contract*.jar" 2>/dev/null | head -5
-                                    fi
-                                </argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
