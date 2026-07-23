@@ -50,8 +50,15 @@ Knowledge Garden — пользователь «выращивает» граф 
   **M3 закрыт** — полная сборка `mvn -fae install` и per-module CI зелёные.
   - 🔧 **follow-up: загрузка аватара (bytea)** (ждёт публикации OAS 2.1.0 + пересборку): контракт → **2.1.0** (добавлен `GET /users/{userId}/avatar`, binary; `<eunoia-oas.version>` в корневом pom → 2.1.0); `AvatarStoragePort` (out-port — миграция на MinIO/S3 = новый адаптер, ядро не трогаем) + таблица `avatars` (Postgres **bytea**, отдельная от profiles); `uploadAvatar` реальный (валидация тип png/jpg/webp, multipart-лимит 2MB), `GET /users/{id}/avatar` — публичный (permitAll); заглушка 501 убрана. `avatarUrl` загруженного файла = `/users/{id}/avatar` (относительно API-базы). Тесты — 100% (юниты + расширен `ProfileEventFlowTest`).
   Гоча для user: `eureka.instance.hostname: localhost` (✅ в yml), `/error` в permitAll (✅), id при `@GeneratedValue` руками не ставить.
-- **M4 — service-knowledge** ⬜ граф языка на Neo4j — сам продукт.
-- **M5 — харднинг** ⬜ load-balanced JWKS через Eureka (сейчас прямой адрес auth); аудит best-effort; проверка типа токена.
+- **M4 — service-learning (модулит)** 🔜 (проектируется) — учебное ядро: канонический граф языка (Neo4j) + тонкий персональный оверлей «сад» (Postgres). Первый бандед-контекст модулита; garden(полный)/tutor дорастают модулями/вехами.
+  **Решения:** модулит `service-learning` (контексты `knowledge`/`garden` как пакеты; hexagonal `learning-logic`/`-api`/`-app`); два хранилища — Neo4j (канон) + Postgres `learning_db` (оверлей), Spring Data со скоупом по пакетам (`@EnableNeo4jRepositories` на knowledge, `@EnableJpaRepositories` на garden); данные — **реальный импорт** (OEWN + Wiktionary/kaikki + частотный список); единица обучения — `Lexeme` (лемма+POS), `Sense` позже; статус мастерства M4 — `KNOWN/LEARNING/UNKNOWN` (FSRS — M5); чтение канона и запись мастерства — под токеном; Kafka в M4 нет.
+  **Принцип двух графов:** `garden.mastery(userId, lexemeId, status)` ссылается на `knowledge.Lexeme.id` по id, не встраивая; garden-view джойнит структуру (Neo4j) × статус (Postgres) в приложении.
+  **Модель графа (Neo4j):** узлы `Lexeme`/`Form`/`Translation`/`Topic`/`Grammar`/`Example` (+`Sense` позже); связи `HAS_FORM`, `TRANSLATION`, `SYNONYM`, `ANTONYM`, `HYPERNYM`, `IN_TOPIC`, `ILLUSTRATES`, `PREREQUISITE`, `SUBTOPIC`, `USES`. Стабильный id у `Lexeme`/`Grammar`.
+  **Задачи:** M4.1 скелет модулита (Neo4j+Postgres конфиг, docker-compose +Neo4j, gateway-роут `/api/v1/learning/**`) → M4.2 knowledge-домен + SDN-адаптер + neo4j-migrations → M4.3 импорт (OEWN+kaikki+частотник → bulk-load, идемпотентно; **дампы качает и прогон делает владелец**, песочница офлайн) → M4.4 garden-контекст (таблица `mastery`, POST мастерства) → M4.5 контракт `learning-api.yaml` + read + **garden-view** → M4.6 тесты (Testcontainers Neo4j+Postgres) + `ci-service-learning.yml`.
+  **Риск:** M4.3 импорт — самая тяжёлая часть (источники/лицензии/маппинг/объём); ограничиваем частотным списком (топ ~N лемм). Возможно вынести импорт в отдельный тул, сервис только читает.
+- **M5 — сад (полный)** ⬜ FSRS-retrievability вместо статуса: «увядание» листьев, цвет = вероятность вспомнить, планировщик повторений.
+- **M6 — tutor (AI-садовник)** ⬜ находит слабое/увядающее место в персональном графе и предлагает, что подтянуть.
+- **M7 — харднинг** ⬜ load-balanced JWKS через Eureka (сейчас прямой адрес auth); аудит best-effort; проверка типа токена.
 
 ## Известные хвосты
 - **Локальная регистрация в Eureka = `localhost`**: без `eureka.instance.hostname` сервис регает LAN-IP (10.x),

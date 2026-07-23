@@ -32,5 +32,18 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
 
+  # Neo4j — канонический граф знаний для service-learning (M4).
+  neo4j:
+    image: neo4j:5-community
+    container_name: eunoia-neo4j
+    ports:
+      - "7474:7474"          # HTTP-браузер: http://localhost:7474
+      - "7687:7687"          # Bolt: драйвер приложения (spring.neo4j.uri)
+    environment:
+      NEO4J_AUTH: neo4j/password
+    volumes:
+      - neo4j-data:/data
+
 volumes:
   kafka-data:
+  neo4j-data:

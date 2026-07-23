@@ -20,6 +20,7 @@
         <module>eureka-server</module>
         <module>service-auth</module>
         <module>service-user</module>
+        <module>service-learning</module>
     </modules>
 
     <properties>
