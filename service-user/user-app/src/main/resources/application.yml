@@ -57,3 +57,7 @@ management:
     web:
       exposure:
         include: health,info
+
+# Публичный адрес API через gateway — для avatarUrl загруженного файла (готов для <img src>).
+app:
+  public-url: ${PUBLIC_API_URL:http://localhost:7777/api/v1}

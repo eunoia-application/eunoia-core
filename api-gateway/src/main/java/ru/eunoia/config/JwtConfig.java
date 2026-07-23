@@ -29,6 +29,8 @@ public class JwtConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight
+                        // Публичная картинка аватара: <img> ходит без токена, поэтому пропускаем без auth.
+                        .pathMatchers(HttpMethod.GET, "/api/v1/users/*/avatar").permitAll()
                         .pathMatchers(
                                 "/api/v1/auth/**",
                                 "/.well-known/**",

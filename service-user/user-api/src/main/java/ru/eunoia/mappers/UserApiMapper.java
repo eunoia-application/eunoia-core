@@ -7,6 +7,7 @@ import com.eunoia.application.user.model.UserSettings;
 import com.eunoia.application.user.model.UserUpdateRequest;
 import java.net.URI;
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import ru.eunoia.application.comand.UpdateProfileCommand;
 import ru.eunoia.application.domain.model.Profile;
@@ -15,6 +16,13 @@ import ru.eunoia.application.domain.model.ProfileSettings;
 /** Перевод между доменным Profile и DTO контракта. Имена enum-констант совпадают (LIGHT/DARK/AUTO, PUBLIC/PRIVATE). */
 @Component
 public class UserApiMapper {
+
+    /** Публичная база API (через gateway), чтобы avatarUrl загруженного файла был готов для <img src>. */
+    private final String publicBase;
+
+    public UserApiMapper(@Value("${app.public-url}") String publicBase) {
+        this.publicBase = publicBase;
+    }
 
     public UserProfile toProfile(Profile p) {
         UserProfile dto = new UserProfile();
@@ -56,9 +64,16 @@ public class UserApiMapper {
         return new UpdateProfileCommand(req.getFirstName(), req.getLastName(), req.getBio(), avatarUrl);
     }
 
-    /** Домен хранит URL строкой; контракт — java.net.URI (format: uri). Null пробрасываем как есть. */
-    private static URI toUri(String value) {
-        return value == null ? null : URI.create(value);
+    /**
+     * Домен хранит URL строкой; контракт — java.net.URI. Загруженный аватар лежит относительным
+     * путём (/users/{id}/avatar) — достраиваем до публичного адреса gateway, чтобы <img src> работал
+     * напрямую. Внешний URL (задан пользователем) отдаём как есть. Null пробрасываем.
+     */
+    private URI toUri(String value) {
+        if (value == null) {
+            return null;
+        }
+        return URI.create(value.startsWith("/") ? publicBase + value : value);
     }
 
     public ProfileSettings toSettings(UserSettings dto) {

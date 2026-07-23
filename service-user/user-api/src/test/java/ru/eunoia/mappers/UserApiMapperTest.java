@@ -25,8 +25,9 @@ class UserApiMapperTest {
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final LocalDateTime CREATED = LocalDateTime.of(2026, 1, 2, 3, 4, 5);
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 6, 7, 8, 9, 10);
+    private static final String PUBLIC_BASE = "http://localhost:7777/api/v1";
 
-    private final UserApiMapper mapper = new UserApiMapper();
+    private final UserApiMapper mapper = new UserApiMapper(PUBLIC_BASE);
 
     /** Профиль с заданным аватаром и настройками; остальные поля фиксированы. */
     private static Profile profile(String avatarUrl, ProfileSettings settings) {
@@ -63,6 +64,14 @@ class UserApiMapperTest {
         UserProfile dto = mapper.toProfile(profile(null, ProfileSettings.defaults()));
 
         assertThat(dto.getAvatarUrl()).isNull();
+    }
+
+    @Test
+    void toProfile_relativeAvatar_prependsPublicBase() {
+        UserProfile dto = mapper.toProfile(profile("/users/" + USER_ID + "/avatar", ProfileSettings.defaults()));
+
+        assertThat(dto.getAvatarUrl())
+                .isEqualTo(URI.create(PUBLIC_BASE + "/users/" + USER_ID + "/avatar"));
     }
 
     @Test
