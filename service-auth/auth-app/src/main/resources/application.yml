@@ -30,6 +30,10 @@ auth:
   lockout:
     max-attempts: ${AUTH_MAX_ATTEMPTS:5}
     lock-duration-minutes: ${AUTH_LOCK_MINUTES:15}
+  # TTL одноразовых токенов email-флоу (подтверждение почты / сброс пароля).
+  token:
+    email-verification-hours: ${AUTH_VERIFY_TOKEN_HOURS:24}
+    password-reset-minutes: ${AUTH_RESET_TOKEN_MINUTES:30}
 
 # Регистрация в Eureka (eureka-server слушает 9999). В тесте Eureka отключается — сервис автономен.
 eureka:
@@ -37,6 +41,11 @@ eureka:
     enabled: ${EUREKA_ENABLED:true}
     service-url:
       defaultZone: ${EUREKA_SERVICE_URL:http://localhost:9999/eureka/}
+  instance:
+    # Локально регистрируемся как localhost — иначе Eureka отдаёт LAN-IP (10.x), куда gateway не достучится.
+    # В проде переопределяем EUREKA_INSTANCE_HOSTNAME на реальный хост/имя контейнера.
+    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
 
 management:
   endpoints:

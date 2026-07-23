@@ -61,4 +61,16 @@ public record User(
         return new User(id, email, username, passwordHash, emailVerified, active,
                 false, 0, null, createdAt, updatedAt, LocalDateTime.now());
     }
+
+    /** Почта подтверждена. */
+    public User withEmailVerified() {
+        return new User(id, email, username, passwordHash, true, active,
+                locked, failedLoginAttempts, lockedUntil, createdAt, LocalDateTime.now(), lastLoginAt);
+    }
+
+    /** Новый пароль (после сброса). */
+    public User withPasswordHash(String newPasswordHash) {
+        return new User(id, email, username, newPasswordHash, emailVerified, active,
+                locked, failedLoginAttempts, lockedUntil, createdAt, LocalDateTime.now(), lastLoginAt);
+    }
 }

@@ -11,16 +11,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import ru.eunoia.application.port.in.ForgotPasswordUseCase;
 import ru.eunoia.application.port.in.LoginUseCase;
 import ru.eunoia.application.port.in.LogoutUseCase;
 import ru.eunoia.application.port.in.RefreshTokenUseCase;
 import ru.eunoia.application.port.in.RegisterUseCase;
+import ru.eunoia.application.port.in.ResetPasswordUseCase;
+import ru.eunoia.application.port.in.VerifyEmailUseCase;
 import ru.eunoia.mappers.AuthApiMapper;
 import ru.eunoia.security.CurrentUser;
 
 /**
  * Веб-адаптер auth: реализует сгенерённый AuthApi и делегирует в use case'ы.
- * Работают register/login/refresh/logout; verify-email/forgot/reset — заглушки до конца M2.
  */
 @RestController
 @RequiredArgsConstructor
@@ -30,6 +32,9 @@ public class AuthenticationController implements AuthApi {
     private final RegisterUseCase registerUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
+    private final VerifyEmailUseCase verifyEmailUseCase;
+    private final ForgotPasswordUseCase forgotPasswordUseCase;
+    private final ResetPasswordUseCase resetPasswordUseCase;
     private final CurrentUser currentUser;
     private final AuthApiMapper mapper;
 
@@ -57,20 +62,21 @@ public class AuthenticationController implements AuthApi {
         return ResponseEntity.noContent().build();
     }
 
-    // --- заглушки до конца M2 ---
+    @Override
+    public ResponseEntity<Void> verifyEmail(String token) {
+        verifyEmailUseCase.verify(token);
+        return ResponseEntity.noContent().build();
+    }
 
     @Override
     public ResponseEntity<Void> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        forgotPasswordUseCase.requestReset(forgotPasswordRequest.getEmail());
+        return ResponseEntity.noContent().build(); // 204 всегда — не раскрываем, есть ли аккаунт
     }
 
     @Override
     public ResponseEntity<Void> resetPassword(ResetPasswordRequest resetPasswordRequest) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
-    }
-
-    @Override
-    public ResponseEntity<Void> verifyEmail(String token) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        resetPasswordUseCase.reset(resetPasswordRequest.getToken(), resetPasswordRequest.getNewPassword());
+        return ResponseEntity.noContent().build();
     }
 }
