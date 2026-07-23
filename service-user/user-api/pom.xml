@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>ru.eunoia.user</groupId>
+        <artifactId>service-user</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>ru.eunoia.user.api</groupId>
+    <artifactId>user-api</artifactId>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/eunoia-application/eunoia-oas</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>ru.eunoia.user.logic</groupId>
+            <artifactId>user-logic</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Контракты (provided): yaml распаковывается и по нему генерится код -->
+        <dependency>
+            <groupId>com.eunoia.application</groupId>
+            <artifactId>shared-contract</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.eunoia.application</groupId>
+            <artifactId>user-contract</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Нужно сгенерённым Spring-интерфейсам + моделям -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- target/generated-sources/openapi/... как корень исходников -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>add-openapi-generated-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Распаковываем shared.yaml + user-api.yaml в одну папку, чтобы $ref на shared резолвился -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-openapi-specs</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>unpack-dependencies</goal></goals>
+                        <configuration>
+                            <includeGroupIds>com.eunoia.application</includeGroupIds>
+                            <includeArtifactIds>shared-contract,user-contract</includeArtifactIds>
+                            <includes>*.yaml</includes>
+                            <outputDirectory>${project.build.directory}/openapi-spec</outputDirectory>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                            <overWriteReleases>true</overWriteReleases>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Генерируем UserApi + DTO -->
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi-generator.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-user-api</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>generate</goal></goals>
+                        <configuration>
+                            <inputSpec>${project.build.directory}/openapi-spec/user-api.yaml</inputSpec>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <generatorName>spring</generatorName>
+                    <library>spring-boot</library>
+                    <apiPackage>com.eunoia.application.user.api</apiPackage>
+                    <modelPackage>com.eunoia.application.user.model</modelPackage>
+                    <invokerPackage>com.eunoia.application.user</invokerPackage>
+                    <generateApiTests>false</generateApiTests>
+                    <generateApiDocumentation>false</generateApiDocumentation>
+                    <generateModelTests>false</generateModelTests>
+                    <generateModelDocumentation>false</generateModelDocumentation>
+                    <generateSupportingFiles>false</generateSupportingFiles>
+                    <configOptions>
+                        <interfaceOnly>true</interfaceOnly>
+                        <useSpringBoot3>true</useSpringBoot3>
+                        <useJakartaEe>true</useJakartaEe>
+                        <useTags>true</useTags>
+                        <useResponseEntity>true</useResponseEntity>
+                        <dateLibrary>java8-localdatetime</dateLibrary>
+                        <openApiNullable>false</openApiNullable>
+                        <serializationLibrary>jackson</serializationLibrary>
+                        <skipDefaultInterface>true</skipDefaultInterface>
+                        <useBeanValidation>true</useBeanValidation>
+                    </configOptions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
