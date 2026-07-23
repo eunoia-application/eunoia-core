@@ -43,6 +43,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
         return toDomain(jpaRepository.save(entity));
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        jpaRepository.deleteById(id);
+    }
+
     private User toDomain(UserEntity e) {
         return new User(
                 e.getId(),

@@ -4,6 +4,7 @@ import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.eunoia.application.port.in.DeleteAccountUseCase;
 import ru.eunoia.application.port.in.ForgotPasswordUseCase;
 import ru.eunoia.application.port.in.LoginUseCase;
 import ru.eunoia.application.port.in.LogoutUseCase;
@@ -20,6 +21,7 @@ import ru.eunoia.application.port.out.RefreshTokenRepositoryPort;
 import ru.eunoia.application.port.out.TokenProviderPort;
 import ru.eunoia.application.port.out.UserRepositoryPort;
 import ru.eunoia.application.services.AuthEventRecorder;
+import ru.eunoia.application.services.DeleteAccountUseCaseImpl;
 import ru.eunoia.application.services.ForgotPasswordUseCaseImpl;
 import ru.eunoia.application.services.LoginUseCaseImpl;
 import ru.eunoia.application.services.LogoutUseCaseImpl;
@@ -78,6 +80,14 @@ public class UseCaseConfig {
     public LogoutUseCase logoutUseCase(RefreshTokenRepositoryPort refreshTokenRepository,
                                        AuthEventRecorder recorder) {
         return new LogoutUseCaseImpl(refreshTokenRepository, recorder);
+    }
+
+    @Bean
+    public DeleteAccountUseCase deleteAccountUseCase(UserRepositoryPort userRepository,
+                                                    RefreshTokenRepositoryPort refreshTokenRepository,
+                                                    EventPublisherPort eventPublisher,
+                                                    AuthEventRecorder recorder) {
+        return new DeleteAccountUseCaseImpl(userRepository, refreshTokenRepository, eventPublisher, recorder);
     }
 
     @Bean
