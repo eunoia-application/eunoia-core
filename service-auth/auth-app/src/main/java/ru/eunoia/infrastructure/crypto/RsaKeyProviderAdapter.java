@@ -10,11 +10,11 @@ import org.springframework.stereotype.Component;
 import ru.eunoia.application.port.out.KeyProviderPort;
 
 /**
- * M1: generates an RSA-2048 signing keypair once at startup (single-instance dev issuer).
- * The key id is the JWK SHA-256 thumbprint, so it matches the `kid` published in the JWKS.
+ * Генерит RSA-2048 ключ для подписи один раз на старте (single-instance dev-издатель).
+ * kid = SHA-256 thumbprint ключа, совпадает с `kid` в публикуемом JWKS.
  *
- * Deploy hardening (M2+): load a STABLE key from config / keystore instead of generating,
- * so issued tokens survive restarts and all instances expose the same JWKS.
+ * Харднинг для деплоя (M5): брать СТАБИЛЬНЫЙ ключ из конфига/keystore, а не генерить —
+ * тогда токены переживают рестарт, и все инстансы отдают один JWKS.
  */
 @Component
 public class RsaKeyProviderAdapter implements KeyProviderPort {

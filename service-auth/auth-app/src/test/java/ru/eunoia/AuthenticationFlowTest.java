@@ -198,6 +198,16 @@ class AuthenticationFlowTest {
         assertThat(newLogin.getStatusCode().value()).isEqualTo(200);
     }
 
+    @Test
+    void refresh_with_garbage_token_is_rejected() {
+        // невалидный (нераспарсиваемый) токен → 401; покрывает catch в проверке JWT
+        HttpStatusCode status = client().post().uri("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new RefreshTokenRequest("not-a-real-token"))
+                .exchange((request, response) -> response.getStatusCode());
+        assertThat(status.value()).isEqualTo(401);
+    }
+
     /** Заглушка почты для теста: перехватывает отправленные токены вместо реальной отправки. */
     @TestConfiguration
     static class TestEmailConfig {

@@ -4,8 +4,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * A freshly issued pair of access + refresh tokens plus their metadata.
- * Immutable value object; the token strings are produced by a {@code TokenProviderPort} adapter.
+ * Свежевыданная пара access + refresh токенов с метаданными. Неизменяемый value object;
+ * сами строки токенов делает адаптер {@code TokenProviderPort}.
  */
 public record AuthTokens(
         String accessToken,

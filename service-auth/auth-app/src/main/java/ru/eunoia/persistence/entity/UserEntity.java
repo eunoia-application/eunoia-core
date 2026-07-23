@@ -16,8 +16,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
- * JPA persistence model for the auth-owned user (Design B: service-auth owns credentials).
- * Profile data lives in service-user; this table holds only what authentication needs.
+ * JPA-модель пользователя, которым владеет auth (Design B: учётные данные — у service-auth).
+ * Профиль живёт в service-user; здесь только то, что нужно для аутентификации.
  */
 @Entity
 @Table(name = "users", indexes = {

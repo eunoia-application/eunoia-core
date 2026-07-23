@@ -21,8 +21,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * JPA persistence model for auth events. Lives in the persistence adapter (auth-app),
- * not in the domain core — the core speaks in {@code AuthEvent}.
+ * JPA-модель событий аудита. Живёт в адаптере персистентности (auth-app),
+ * не в ядре — ядро оперирует {@code AuthEvent}.
  */
 @Entity
 @Table(name = "auth_events", indexes = {
