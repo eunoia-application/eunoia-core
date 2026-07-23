@@ -1,0 +1,33 @@
+name: CI · eureka-server
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'eureka-server/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-eureka-server.yml'
+      - '.github/workflows/_build.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'eureka-server/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-eureka-server.yml'
+      - '.github/workflows/_build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      module: eureka-server
+      label: eureka-server
+    secrets: inherit

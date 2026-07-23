@@ -1,0 +1,35 @@
+name: CI · service-auth
+
+# Гоняем только если менялся сам сервис, корневой pom (родитель всех модулей)
+# или общий build-workflow. Иначе — не запускаемся.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'service-auth/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-service-auth.yml'
+      - '.github/workflows/_build.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'service-auth/**'
+      - 'pom.xml'
+      - '.github/workflows/ci-service-auth.yml'
+      - '.github/workflows/_build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      module: service-auth/auth-app
+      label: service-auth
+    secrets: inherit
