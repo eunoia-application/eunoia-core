@@ -1,0 +1,18 @@
+# Схема оверлея мастерства (контекст garden) в Postgres. Канон знаний живёт отдельно в Neo4j.
+# mastery связан с графом только по lexeme_id (id узла Neo4j, напр. en:go:VERB) — без FK.
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-mastery
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: mastery
+            columns:
+              - column: { name: user_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: lexeme_id, type: varchar(120), constraints: { nullable: false } }
+              - column: { name: status, type: varchar(20), constraints: { nullable: false } }
+              - column: { name: updated_at, type: timestamp, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: mastery
+            columnNames: user_id, lexeme_id
+            constraintName: pk_mastery

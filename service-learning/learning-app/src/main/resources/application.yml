@@ -24,8 +24,11 @@ spring:
     password: ${DB_PASSWORD:learning_password}
   jpa:
     hibernate:
-      ddl-auto: none      # схемой оверлея будет владеть Liquibase (появится в M4.4)
+      ddl-auto: none      # схемой оверлея владеет Liquibase
     open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
 
   # Валидируем JWT от auth его же публичным ключом (JWKS). Прямой адрес; lb:// — это харднинг.
   security:

@@ -67,6 +67,11 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Схемой garden-оверлея (таблица mastery) владеет Liquibase. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-liquibase</artifactId>
+        </dependency>
 
         <!-- Service discovery -->
         <dependency>
