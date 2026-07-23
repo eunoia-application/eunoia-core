@@ -38,10 +38,10 @@ import ru.eunoia.persistence.knowledge.repository.LexemeNeo4jRepository;
  * чтобы не тянуть JPA/Eureka/security всего модулита. (Готовый срез {@code @DataNeo4jTest}
  * в Boot 4 переехал в отдельный модуль; собираем эквивалент из доступных автоконфигов.)
  */
-@SpringBootTest(classes = LexiconRepositoryAdapterIT.KnowledgeSliceConfig.class,
+@SpringBootTest(classes = LexiconRepositoryAdapterTest.KnowledgeSliceConfig.class,
         webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
-class LexiconRepositoryAdapterIT {
+class LexiconRepositoryAdapterTest {
 
     @Container
     @ServiceConnection
