@@ -11,6 +11,11 @@ spring:
     authentication:
       username: ${NEO4J_USERNAME:neo4j}
       password: ${NEO4J_PASSWORD:password}
+  # Имя базы в Neo4j. Desktop-инстанс может держать её под своим именем (напр. eunoia);
+  # дефолт neo4j — для docker-compose и Testcontainers.
+  data:
+    neo4j:
+      database: ${NEO4J_DATABASE:neo4j}
 
   # Персональный оверлей мастерства (контекст garden) — Postgres.
   datasource:
