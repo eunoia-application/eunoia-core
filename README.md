@@ -12,7 +12,7 @@
 ![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-2025.1.2-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)
-![Neo4j](https://img.shields.io/badge/Neo4j-планируется-008CC1?style=for-the-badge&logo=neo4j&logoColor=white)
+![Neo4j](https://img.shields.io/badge/Neo4j-M4_готов-008CC1?style=for-the-badge&logo=neo4j&logoColor=white)
 
 ![Architecture](https://img.shields.io/badge/архитектура-гексагональная-8A2BE2?style=flat-square)
 ![API](https://img.shields.io/badge/API-contract--first-0A7BBB?style=flat-square)
@@ -81,13 +81,15 @@ flowchart LR
     FE["🖥️ Фронт<br/>:9000"] -->|/api/v1/**| GW["🚪 api-gateway<br/>:7777"]
     GW -->|/api/v1/auth/**| AUTH["🔐 service-auth<br/>:8081"]
     GW -->|/api/v1/users/**| USER["👤 service-user<br/>:8082"]
+    GW -->|/api/v1/learning/**| LEARN["📚 service-learning<br/>:8083"]
     AUTH -.->|"UserRegistered / UserDeleted"| K(("📨 Kafka"))
     K -.->|"user.registered / user.deleted"| USER
     AUTH --- PGA[("🗄️ auth_db")]
     USER --- PGU[("🗄️ user_db")]
-    GW & AUTH & USER -.->|discovery| EU["🧭 eureka<br/>:9999"]
-    GW -.->|JWKS| AUTH
-    USER -.->|JWKS| AUTH
+    LEARN --- NEO[("🌳 Neo4j<br/>граф языка")]
+    LEARN --- PGL[("🗄️ learning_db")]
+    GW & AUTH & USER & LEARN -.->|discovery| EU["🧭 eureka<br/>:9999"]
+    GW & USER & LEARN -.->|JWKS| AUTH
 ```
 
 ### Гексагональная архитектура, границы держит компилятор
@@ -107,8 +109,9 @@ flowchart LR
   и клиент, и серверные интерфейсы. Бэк и фронт — на одном контракте.
 - **RS256 + JWKS.** auth подписывает токены приватным ключом, публичный отдаёт по
   `/.well-known/jwks.json`; gateway и user только **валидируют** (сами не выпускают).
-- **Учебное ядро — модулит, не микросервисы.** knowledge + garden + tutor будут одним
-  развёртыванием (граф, прогресс и AI тесно связаны) — дробить на сервисы там незачем.
+- **Учебное ядро — модулит, не микросервисы.** `service-learning` держит knowledge (граф Neo4j) +
+  garden (прогресс Postgres) одним развёртыванием (tutor/AI дорастёт вехой M6) — граф, прогресс и AI
+  тесно связаны, дробить на сервисы там незачем.
 
 ## 🧩 Сервисы
 
@@ -118,8 +121,8 @@ flowchart LR
 | `api-gateway` | Точка входа: CORS, JWT по JWKS, роутинг `/api/v1/**` | 7777 | ✅ работает |
 | `service-auth` | Identity: учётки, RS256+JWKS, refresh/logout/локаут, email-флоу, удаление аккаунта | 8081 | ✅ M1/M2 |
 | `service-user` | Профиль: событийное создание, аватар, настройки, публичный профиль | 8082 | ✅ M3 |
-| `service-knowledge` | Граф языка на Neo4j — **сам продукт** | — | 🔜 M4 |
-| `service-garden`, `service-tutor` | Прогресс/SRS (FSRS), AI-садовник | — | 🗓️ план |
+| `service-learning` (модулит) | Граф языка (Neo4j) + сад/прогресс (Postgres) + REST — **сам продукт** | 8083 | ✅ M4 |
+| tutor (AI-садовник) | Точечная помощь по персональному графу | — | 🗓️ M6 |
 
 ## 🔄 Событийный каскад (пример: регистрация)
 
@@ -144,7 +147,7 @@ sequenceDiagram
 - **Java 25**, **Spring Boot 4.1**, **Spring Cloud 2025.1.2** (Oakwood)
 - **PostgreSQL** — реляционные данные (identity, профиль, аватар в `bytea`)
 - **Apache Kafka** — событийная связь сервисов
-- **Neo4j** — граф знаний *(M4)*
+- **Neo4j** — граф языка (service-learning, ✅ M4); **WikDict/kaikki** — источники данных импорта
 - **OpenAPI** (contract-first, генерация клиента/сервера), **Eureka** (discovery)
 - **Тесты:** JUnit 5 + **Testcontainers** (Postgres/Kafka), покрытие — **JaCoCo**
 - **CI:** GitHub Actions, **per-module** (гоняется только затронутый модуль)
@@ -156,15 +159,16 @@ sequenceDiagram
 mvn -fae -DskipTests install   # без тестов
 mvn -fae install               # с тестами (нужен Docker: Testcontainers поднимает Postgres и Kafka)
 ```
-> ⚠️ `mvn clean` не использовать — сносит сгенерённые из OpenAPI исходники в `auth-api`/`user-api`.
+> ⚠️ `mvn clean` не использовать — сносит сгенерённые из OpenAPI исходники в `auth-api`/`user-api`/`learning-api`.
 
 Запуск локально:
 ```bash
-# 1. Инфраструктура: Postgres (базы auth_db, user_db) — сам; Kafka — через compose
+# 1. Инфраструктура: Postgres (базы auth_db, user_db, learning_db) — сам;
+#    Kafka + Neo4j (база neo4j) — через compose / Neo4j Desktop
 docker compose up -d
 
 # 2. Сервисы по порядку
-#    eureka-server  →  service-auth  →  service-user  →  api-gateway
+#    eureka-server  →  service-auth  →  service-user  →  service-learning  →  api-gateway
 ```
 Схему БД накатывает Liquibase на старте. Фронт ходит на gateway `http://localhost:7777/api/v1`
 (dev-origin фронта — `http://localhost:9000`).
@@ -177,8 +181,15 @@ docker compose up -d
   своего профиля и настроек (`/users/me`), публичный профиль (`GET /users/{id}`); **аватар** —
   загрузка файла (`POST /users/me/avatar`, хранение в Postgres `bytea`) и публичная отдача
   (`GET /users/{id}/avatar`).
+- **service-learning (M4, модулит):** канонический граф языка в **Neo4j** (слова-леммы с частями речи,
+  формы, переводы, синонимы/антонимы/гиперонимы, темы, грамматика, IPA) + персональный «сад» в
+  **Postgres** (мастерство по лемме). REST: карточка слова (`/learning/words/{id}` — variants по частям
+  речи), **блоки топ-слов** (`/learning/bands` — уровни по частоте с прогрессом), слова блока/темы,
+  поиск, ствол грамматики, отметка «Знаю/Учить» + очередь `/learning/study`. Данные — реальный импорт
+  (kaikki/Wiktionary + частотник + WikDict) офлайн-тулом `learning-ingest`.
 - Всё под **100% покрытием** (юниты + интеграция на Testcontainers) и per-module CI.
 
 ## 🗺️ Roadmap
 Живой план, архитектурные решения и статус милстоунов — в **[ROADMAP.md](ROADMAP.md)**.
-Следующая веха — **M4: `service-knowledge`** (граф языка на Neo4j), тот самый продукт.
+**M4 (`service-learning`) закрыт** — тот самый продукт (граф языка + сад + REST, word-модель, блоки
+топ-слов). Следующая веха — **M5: сад с FSRS** («увядание» вместо статуса, планировщик повторений).

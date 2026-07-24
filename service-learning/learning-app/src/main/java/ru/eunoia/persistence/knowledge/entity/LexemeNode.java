@@ -28,6 +28,7 @@ public class LexemeNode {
     private String lang;
     private String cefr;
     private Integer freqRank;
+    private String ipa;
 
     @Relationship(type = "HAS_FORM", direction = Relationship.Direction.OUTGOING)
     private List<FormNode> forms;

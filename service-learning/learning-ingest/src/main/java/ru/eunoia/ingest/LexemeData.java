@@ -10,6 +10,10 @@ import java.util.Set;
  * по полям, targetId связей — строки. Порядок вставки сохраняем (LinkedHashSet) —
  * повторные прогоны дают стабильный результат.
  *
+ * <p>freqRank — <b>минимальный</b> ранг среди всех форм леммы (свёрнутая частота): разные
+ * этимологии дают разные формы, поэтому при мерже держим наименьший ранг ({@link #mergeRank}).
+ * CEFR здесь не храним — он выводится из финального ранга уже на загрузке.
+ *
  * <p>id связей считаем сразу ("en:{targetLemma}:{POS}"), а вот проверку «а импортирован ли
  * такой target вообще» откладываем на этап загрузки рёбер — чтобы не плодить висячие связи.
  */
@@ -20,9 +24,10 @@ final class LexemeData {
     final String lemma;
     /** Имя enum части речи: VERB / NOUN / ADJECTIVE / ADVERB. */
     final String pos;
-    final int freqRank;
-    /** Уровень CEFR по бакету частоты: A1..C2. */
-    final String cefr;
+    /** Свёрнутый ранг частоты: минимум среди форм леммы (меньше = частотнее). */
+    int freqRank;
+    /** Транскрипция IPA (из kaikki sounds), предпочтительно американская. null = нет. */
+    String ipa;
 
     final Set<Form> forms = new LinkedHashSet<>();
     final Set<Translation> translations = new LinkedHashSet<>();
@@ -30,11 +35,24 @@ final class LexemeData {
     final Set<String> antonymIds = new LinkedHashSet<>();
     final Set<String> hypernymIds = new LinkedHashSet<>();
 
-    LexemeData(String id, String lemma, String pos, int freqRank, String cefr) {
+    /** kaikki-категории слова (из senses[].categories) — по ним каталог выберет ветку. */
+    final Set<String> categories = new LinkedHashSet<>();
+    /** id ветки сада (Topic); проставляется каталогом после отбора топ-N. null = без темы. */
+    String topicId;
+    /** id грамматических правил, которые слово иллюстрирует (по неправильным формам). */
+    final Set<String> grammarIds = new LinkedHashSet<>();
+
+    LexemeData(String id, String lemma, String pos, int freqRank) {
         this.id = id;
         this.lemma = lemma;
         this.pos = pos;
         this.freqRank = freqRank;
-        this.cefr = cefr;
+    }
+
+    /** Мерж этимологии той же леммы: держим наименьший (самый частотный) ранг. */
+    void mergeRank(int rank) {
+        if (rank < freqRank) {
+            this.freqRank = rank;
+        }
     }
 }

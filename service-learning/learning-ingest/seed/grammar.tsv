@@ -1,0 +1,43 @@
+# Курируемый скелет грамматики (ствол сада): правила + порядок + маркер-слова.
+# Уровни и состав выверены по British Council / EAQUALS Core Inventory for General English
+# (A1–B2). Грамматики в словарных дампах нет — структуру задаём мы, а связь со словами
+# (ILLUSTRATES) тул выводит из данных.
+#
+# Формат (TAB между полями):  id <TAB> name <TAB> cefr <TAB> prereq <TAB> маркеры(через запятую)
+#   prereq  — какое правило желательно знать ДО этого (ребро PREREQUISITE prereq → this).
+#   маркеры — сигнальные слова темы (леммы): их тул связывает с правилом ребром ILLUSTRATES
+#             (напр. already/yet/never → Present Perfect). Работают только слова из наших
+#             частей речи (наречия/сущ.); служебные (if/than/who) — вне импорта, позже.
+# Якоря past-simple / plurals / comparatives тул ещё цепляет по НЕПРАВИЛЬНЫМ формам (см. тул).
+#
+# --- A1 ---
+present-simple	Present Simple	A1		usually,always,often,sometimes,rarely,seldom,normally,generally
+present-continuous	Present Continuous	A1	present-simple	now,currently
+articles	Articles (a/an/the)	A1
+plurals	Plural nouns	A1
+pronouns	Pronouns & possessives	A1
+adjectives	Adjectives & word order	A1
+prepositions-basic	Prepositions of place & time	A1
+can-ability	can / can't (ability & permission)	A1	present-simple
+# --- A2 ---
+past-simple	Past Simple	A2	present-simple	yesterday,ago,earlier
+past-continuous	Past Continuous	A2	past-simple
+present-perfect	Present Perfect	A2	past-simple	already,yet,just,ever,never,recently,lately
+comparatives	Comparatives & superlatives	A2	adjectives	more,most
+future-will	Future: will	A2	present-simple	tomorrow,soon,later,shortly
+future-going-to	Future: going to	A2	present-simple
+quantifiers	Quantifiers (some/any/much/many)	A2
+modals-obligation	Modals: have to / should	A2	present-simple
+first-conditional	First conditional	A2	present-simple
+# --- B1 ---
+present-perfect-continuous	Present Perfect Continuous	B1	present-perfect
+past-perfect	Past Perfect	B1	past-simple
+passive	Passive voice	B1	past-simple
+reported-speech	Reported speech	B1	past-simple
+relative-clauses	Relative clauses	B1	present-simple
+second-conditional	Second conditional	B1	first-conditional
+modals-deduction	Modals of deduction (must / might / can't)	B1	modals-obligation
+# --- B2 ---
+third-conditional	Third conditional	B2	second-conditional
+passive-advanced	Passive: all forms & causative	B2	passive
+wish-regret	wish / if only	B2	second-conditional

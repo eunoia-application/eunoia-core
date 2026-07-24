@@ -1,0 +1,23 @@
+# Курируемая таксономия тем сада (ветки) + маппинг kaikki-категорий на ветку.
+# Формат (TAB между полями):  id <TAB> name <TAB> slug <TAB> parentId <TAB> категории(через запятую)
+#   parentId пустой = корневая ветка (её отдаёт GET /learning/topics).
+#   категории — имена kaikki senses[].categories[].name; их тул мапит на ветку.
+# Приоритет — порядок строк сверху вниз: слово уходит в ПЕРВУЮ подошедшую ветку
+#   (поэтому бытовое — выше технического: salmon с [Foods, Fish] уйдёт в «Еда»).
+# Тул создаёт узлы Topic + рёбра SUBTOPIC (по parentId) + IN_TOPIC (слово→ветка).
+#
+# --- бытовые ветки (гранулярно, под старт) ---
+food	Еда и напитки	food		Foods,Cooking,Beverages,Drinks,Fruits,Vegetables,Breads,Dairy products,Meats,Seafood,Spices,Herbs,Desserts,Cheeses,Alcoholic beverages,Mushrooms,Nuts,Grains,Condiments,Sauces,Pasta
+animals	Животные	animals		Animals,Mammals,Birds,Fish,Insects,Reptiles,Amphibians,Zoology,Molluscs,Arachnids,Crustaceans,Carnivores,Dogs,Cats,Horses
+nature	Растения и природа	nature		Plants,Trees,Flowers,Botany,Fungi,Landforms,Bodies of water,Geography,Weather,Meteorology,Geology,Minerals,Rocks,Seasons,Astronomy,Ecology
+body	Тело и здоровье	body		Anatomy,Body,Body parts,Medicine,Health,Diseases,Pathology,Physiology,Dentistry,Hair
+people	Люди и семья	people		People,Family,Family members,Kinship,Occupations,Personality,Nationalities
+emotions	Эмоции и чувства	emotions		Emotions,Feelings
+home	Дом и быт	home		Buildings,Rooms,Furniture,Containers,Tools,Kitchenware,Cookware,Textiles,Household
+clothing	Одежда	clothing		Clothing,Footwear,Headwear,Fashion,Accessories
+travel	Город и транспорт	travel		Architecture,Construction,Nautical,Aviation,Rail transportation,Automotive,Vehicles,Roads,Cycling,Travel,Tourism
+time	Время и календарь	time		Time,Calendar,Chronology,Units of time,Days of the week
+# --- широкие «продвинутые» ветки (техническая масса свёрнута сюда) ---
+science	Наука и техника	science		Mathematics,Geometry,Algebra,Physics,Chemistry,Biology,Sciences,Computing,Programming,Internet,Software,Networking,Engineering,Electronics,Statistics,Logic,Linguistics,Grammar,Philosophy,Education,Biochemistry,Genetics,Telecommunications
+work-society	Работа и общество	work-society		Business,Finance,Economics,Marketing,Accounting,Management,Law,Law enforcement,Politics,Government,Military,Firearms,Religion,Christianity,History
+leisure	Спорт и искусство	leisure		Sports,Football (soccer),Basketball,Baseball,Golf,Cricket,Tennis,Games,Card games,Chess,Video games,Music,Art,Film,Theater,Photography,Dance,Television,Broadcasting

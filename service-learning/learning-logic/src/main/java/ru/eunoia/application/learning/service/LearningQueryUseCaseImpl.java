@@ -4,24 +4,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
-import ru.eunoia.application.knowledge.domain.model.Grammar;
-import ru.eunoia.application.knowledge.domain.model.LexemeRef;
-import ru.eunoia.application.knowledge.domain.model.RelationType;
 import ru.eunoia.application.knowledge.domain.model.Topic;
+import ru.eunoia.application.knowledge.domain.model.WordRef;
+import ru.eunoia.application.knowledge.domain.model.WordSummary;
 import ru.eunoia.application.knowledge.port.out.LexiconRepositoryPort;
-import ru.eunoia.application.learning.domain.model.GardenLeaf;
-import ru.eunoia.application.learning.domain.model.LexemeCard;
+import ru.eunoia.application.learning.domain.model.Band;
+import ru.eunoia.application.learning.domain.model.GrammarView;
 import ru.eunoia.application.learning.domain.model.TopicView;
+import ru.eunoia.application.learning.domain.model.WordCard;
+import ru.eunoia.application.learning.domain.model.WordLeaf;
+import ru.eunoia.application.learning.domain.model.WordPage;
 import ru.eunoia.application.learning.port.in.LearningQueryUseCase;
 
 /**
- * Фасад над двумя контекстами: структуру берём из канона (Neo4j, LexiconRepositoryPort), статус —
- * из оверлея (Postgres, MasteryRepositoryPort), склеиваем по id слова. Данные графов остаются
- * раздельными — смешивается только вид (принцип двух графов).
+ * Фасад над двумя контекстами: структуру берём из канона (Neo4j), статус — из оверлея (Postgres),
+ * склеиваем по КЛЮЧУ ЛЕММЫ (en:go). Единица обучения — слово. Блоки топ-слов (уровни по частоте) —
+ * первичная навигация, категория слова — вторичная разбивка внутри блока. Мастерство — по слову.
  */
 public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
+
+    /** Эксклюзивные блоки-уровни по рангу частоты (от простого к сложному). */
+    private record BandDef(String id, String label, int from, int to) {
+    }
+
+    private static final List<BandDef> BANDS = List.of(
+            new BandDef("top-100", "Топ-100", 1, 100),
+            new BandDef("top-500", "101–500", 101, 500),
+            new BandDef("top-1000", "501–1000", 501, 1000),
+            new BandDef("top-3000", "1001–3000", 1001, 3000),
+            new BandDef("top-5000", "3001–5000", 3001, 5000),
+            new BandDef("top-10000", "5001–10000", 5001, 10000));
 
     private final LexiconRepositoryPort lexicon;
     private final MasteryRepositoryPort mastery;
@@ -32,18 +47,13 @@ public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
     }
 
     @Override
-    public Optional<LexemeCard> lexemeCard(UUID userId, String lexemeId) {
-        return lexicon.findById(lexemeId).map(lexeme -> new LexemeCard(
-                lexeme,
-                lexicon.related(lexemeId, RelationType.SYNONYM),
-                lexicon.related(lexemeId, RelationType.ANTONYM),
-                lexicon.related(lexemeId, RelationType.HYPERNYM),
-                statusOf(userId, lexemeId)));
+    public Optional<WordCard> wordCard(UUID userId, String lemmaKey) {
+        return lexicon.findWord(lemmaKey).map(word -> new WordCard(word, statusOf(userId, lemmaKey)));
     }
 
     @Override
-    public List<LexemeRef> search(String query, int limit) {
-        return lexicon.search(query, limit);
+    public List<WordRef> searchWords(String query, int limit) {
+        return lexicon.searchWords(query, limit);
     }
 
     @Override
@@ -53,24 +63,77 @@ public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
 
     @Override
     public Optional<TopicView> topicView(UUID userId, String topicId) {
-        return lexicon.findTopic(topicId).map(topic -> {
-            List<LexemeRef> lexemes = lexicon.lexemesInTopic(topicId);
-            Map<String, MasteryStatus> statuses = mastery.statusesFor(userId,
-                    lexemes.stream().map(LexemeRef::id).toList());
-            List<GardenLeaf> leaves = lexemes.stream()
-                    .map(ref -> new GardenLeaf(ref, statuses.getOrDefault(ref.id(), MasteryStatus.UNKNOWN)))
-                    .toList();
-            return new TopicView(topic, leaves);
-        });
+        return lexicon.findTopic(topicId)
+                .map(topic -> new TopicView(topic, leaves(userId, lexicon.wordsInTopic(topicId))));
     }
 
     @Override
-    public Optional<Grammar> grammar(String grammarId) {
-        return lexicon.findGrammar(grammarId);
+    public List<Band> bands(UUID userId) {
+        List<Mastery> marks = mastery.findByUser(userId);
+        Map<String, Integer> ranks = lexicon.ranksOf(marks.stream().map(Mastery::lexemeId).toList());
+        return BANDS.stream().map(b -> {
+            int known = 0;
+            int learning = 0;
+            for (Mastery m : marks) {
+                Integer rank = ranks.get(m.lexemeId());
+                if (rank == null || rank < b.from() || rank > b.to()) {
+                    continue;
+                }
+                if (m.status() == MasteryStatus.KNOWN) {
+                    known++;
+                } else if (m.status() == MasteryStatus.LEARNING) {
+                    learning++;
+                }
+            }
+            return new Band(b.id(), b.label(), b.from(), b.to(),
+                    (int) lexicon.countWordsInRank(b.from(), b.to()), known, learning);
+        }).toList();
     }
 
-    /** Мой статус по слову; нет отметки → UNKNOWN. */
-    private MasteryStatus statusOf(UUID userId, String lexemeId) {
-        return mastery.find(userId, lexemeId).map(m -> m.status()).orElse(MasteryStatus.UNKNOWN);
+    @Override
+    public WordPage listWords(UUID userId, String band, int offset, int limit) {
+        if (band == null || band.isBlank()) {
+            return new WordPage((int) lexicon.countWords(), offset, limit,
+                    leaves(userId, lexicon.allWords(offset, limit)));
+        }
+        return BANDS.stream().filter(b -> b.id().equals(band)).findFirst()
+                .map(b -> new WordPage((int) lexicon.countWordsInRank(b.from(), b.to()), offset, limit,
+                        leaves(userId, lexicon.wordsInRank(b.from(), b.to(), offset, limit))))
+                .orElseGet(() -> new WordPage(0, offset, limit, List.of()));
+    }
+
+    @Override
+    public List<WordLeaf> study(UUID userId) {
+        List<String> learning = mastery.findByUser(userId).stream()
+                .filter(m -> m.status() == MasteryStatus.LEARNING)
+                .map(Mastery::lexemeId)
+                .toList();
+        return leaves(userId, lexicon.wordsByKeys(learning));
+    }
+
+    @Override
+    public Optional<GrammarView> grammar(String grammarId) {
+        return lexicon.findGrammar(grammarId)
+                .map(g -> new GrammarView(g, lexicon.grammarIllustratedBy(grammarId)));
+    }
+
+    @Override
+    public List<GrammarView> grammarTrunk() {
+        return lexicon.grammarTrunk().stream().map(g -> new GrammarView(g, List.of())).toList();
+    }
+
+    /** Сводки слов → листья с темами и моим статусом (по ключу леммы; нет отметки → UNKNOWN). */
+    private List<WordLeaf> leaves(UUID userId, List<WordSummary> words) {
+        Map<String, MasteryStatus> statuses = mastery.statusesFor(userId,
+                words.stream().map(WordSummary::id).toList());
+        return words.stream()
+                .map(w -> new WordLeaf(w.id(), w.lemma(), w.pos(), w.cefr(), w.topics(),
+                        statuses.getOrDefault(w.id(), MasteryStatus.UNKNOWN)))
+                .toList();
+    }
+
+    /** Мой статус по слову (лемме); нет отметки → UNKNOWN. */
+    private MasteryStatus statusOf(UUID userId, String lemmaKey) {
+        return mastery.find(userId, lemmaKey).map(Mastery::status).orElse(MasteryStatus.UNKNOWN);
     }
 }

@@ -7,21 +7,25 @@ import org.springframework.data.repository.query.Param;
 import ru.eunoia.persistence.knowledge.entity.LexemeNode;
 
 /**
- * Репозиторий слов. Унаследованный {@code findById} SDN достраивает формами и переводами
- * (карточка слова). Остальные запросы возвращают «голые» узлы Lexeme — адаптер отдаст их
- * лёгкими ссылками, без форм/переводов. {@code @Param} — чтобы биндинг не зависел от -parameters.
+ * Репозиторий слов-узлов. {@code findByIdStartingWith} — все части речи одной леммы (SDN
+ * достраивает формами/переводами): по нему адаптер собирает карточку-слово. Списки по темам/всем
+ * словам — агрегатные (distinct-лемма), их адаптер делает через Neo4jClient, не тут.
+ * {@code @Param} — чтобы биндинг не зависел от -parameters.
  */
 public interface LexemeNeo4jRepository extends Neo4jRepository<LexemeNode, String> {
 
-    /** Поиск по префиксу леммы, самые частотные — выше. */
-    @Query("MATCH (l:Lexeme) WHERE l.lemma STARTS WITH $query RETURN l ORDER BY l.freqRank ASC LIMIT $limit")
-    List<LexemeNode> searchByLemmaPrefix(@Param("query") String query, @Param("limit") int limit);
+    /** Все части речи одной леммы: id вида "en:go:VERB" по префиксу "en:go:" (формы/переводы гидрируются). */
+    List<LexemeNode> findByIdStartingWith(String idPrefix);
 
-    /** Связанные слова заданного типа ребра (SYNONYM/ANTONYM/HYPERNYM). Матч ненаправленный — ok для M4.2. */
-    @Query("MATCH (l:Lexeme {id: $id})-[r]-(o:Lexeme) WHERE type(r) = $type RETURN o ORDER BY o.freqRank ASC")
+    /**
+     * Связанные слова заданного типа ребра (SYNONYM/ANTONYM/HYPERNYM). Матч ненаправленный, но
+     * DISTINCT — иначе взаимное ребро (a→b и b→a) вернуло бы одно и то же слово дважды.
+     */
+    @Query("MATCH (l:Lexeme {id: $id})-[r]-(o:Lexeme) WHERE type(r) = $type "
+            + "RETURN DISTINCT o ORDER BY o.freqRank ASC")
     List<LexemeNode> relatedByType(@Param("id") String id, @Param("type") String type);
 
-    /** Слова, привязанные к теме ребром IN_TOPIC. */
-    @Query("MATCH (:Topic {id: $topicId})<-[:IN_TOPIC]-(l:Lexeme) RETURN l ORDER BY l.freqRank ASC")
-    List<LexemeNode> inTopic(@Param("topicId") String topicId);
+    /** Слова, иллюстрирующие грамматическое правило (ребро ILLUSTRATES). */
+    @Query("MATCH (l:Lexeme)-[:ILLUSTRATES]->(:Grammar {id: $id}) RETURN l ORDER BY l.freqRank ASC")
+    List<LexemeNode> illustrating(@Param("id") String grammarId);
 }

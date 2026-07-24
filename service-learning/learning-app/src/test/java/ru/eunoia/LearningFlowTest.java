@@ -3,12 +3,10 @@ package ru.eunoia;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.eunoia.application.learning.model.Band;
 import com.eunoia.application.learning.model.Cefr;
 import com.eunoia.application.learning.model.Form;
-import com.eunoia.application.learning.model.GardenLeaf;
 import com.eunoia.application.learning.model.GrammarView;
-import com.eunoia.application.learning.model.LexemeCard;
-import com.eunoia.application.learning.model.LexemeRef;
 import com.eunoia.application.learning.model.MasteryRequest;
 import com.eunoia.application.learning.model.MasteryStatus;
 import com.eunoia.application.learning.model.MasteryView;
@@ -16,6 +14,11 @@ import com.eunoia.application.learning.model.PartOfSpeech;
 import com.eunoia.application.learning.model.TopicRef;
 import com.eunoia.application.learning.model.TopicView;
 import com.eunoia.application.learning.model.Translation;
+import com.eunoia.application.learning.model.WordCard;
+import com.eunoia.application.learning.model.WordLeaf;
+import com.eunoia.application.learning.model.WordPage;
+import com.eunoia.application.learning.model.WordRef;
+import com.eunoia.application.learning.model.WordVariant;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -45,10 +48,10 @@ import ru.eunoia.persistence.knowledge.KnowledgeSchemaInitializer;
 
 /**
  * Сквозная проверка учебного ядра на обоих реальных хранилищах (Testcontainers): структура слов
- * и тем лежит в Neo4j, мой прогресс — в Postgres. Главное, что проверяем, — garden-view: отметил
- * слово «знаю» и тот же лист темы поменял цвет, хотя данные графов не смешиваются (склеиваем
- * только вид, по id слова). auth не поднимаем — JWT подменяем тестовым декодером (bearer = userId).
- * Требует запущенный Docker.
+ * и тем лежит в Neo4j, мой прогресс — в Postgres. Единица — СЛОВО (лемма): карточка склеивает части
+ * речи (variants), мастерство — по ключу леммы (en:go). Главное — garden-view: отметил слово «знаю»
+ * и тот же лист темы поменял цвет, хотя данные графов не смешиваются. auth не поднимаем — JWT
+ * подменяем тестовым декодером (bearer = userId). Требует запущенный Docker.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -57,14 +60,20 @@ import ru.eunoia.persistence.knowledge.KnowledgeSchemaInitializer;
 @Import(LearningFlowTest.TestSecurityConfig.class)
 class LearningFlowTest {
 
-    private static final String GO = "en:go:VERB";
-    private static final String MOVE = "en:move:VERB";
+    private static final String GO = "en:go";       // ключ леммы (без части речи)
+    private static final String MOVE = "en:move";
 
-    private static final ParameterizedTypeReference<List<LexemeRef>> LEXEME_REFS =
+    private static final ParameterizedTypeReference<List<WordRef>> WORD_REFS =
             new ParameterizedTypeReference<>() { };
     private static final ParameterizedTypeReference<List<TopicRef>> TOPIC_REFS =
             new ParameterizedTypeReference<>() { };
     private static final ParameterizedTypeReference<List<MasteryView>> MASTERY_VIEWS =
+            new ParameterizedTypeReference<>() { };
+    private static final ParameterizedTypeReference<List<GrammarView>> GRAMMAR_VIEWS =
+            new ParameterizedTypeReference<>() { };
+    private static final ParameterizedTypeReference<List<Band>> BANDS =
+            new ParameterizedTypeReference<>() { };
+    private static final ParameterizedTypeReference<List<WordLeaf>> WORD_LEAVES =
             new ParameterizedTypeReference<>() { };
 
     @Container
@@ -92,7 +101,7 @@ class LearningFlowTest {
     void seedGraph() {
         neo4jClient.query("MATCH (n) DETACH DELETE n").run();
         neo4jClient.query("""
-                CREATE (go:Lexeme {id:'en:go:VERB', lemma:'go', pos:'VERB', lang:'en', cefr:'A1', freqRank:1})
+                CREATE (go:Lexeme {id:'en:go:VERB', lemma:'go', pos:'VERB', lang:'en', cefr:'A1', freqRank:1, ipa:'/ɡəʊ/'})
                 CREATE (went:Form {text:'went', feature:'past'})
                 CREATE (goRu:Translation {text:'идти', lang:'ru'})
                 CREATE (go)-[:HAS_FORM]->(went)
@@ -101,7 +110,10 @@ class LearningFlowTest {
                 CREATE (go)-[:SYNONYM]->(move)
                 CREATE (movement:Topic {id:'movement', name:'Movement', slug:'movement'})
                 CREATE (go)-[:IN_TOPIC]->(movement)
-                CREATE (grammar:Grammar {id:'past-simple', name:'Past Simple', cefr:'A1'})
+                CREATE (grammar:Grammar {id:'past-simple', name:'Past Simple', cefr:'A2'})
+                CREATE (present:Grammar {id:'present-simple', name:'Present Simple', cefr:'A1'})
+                CREATE (present)-[:PREREQUISITE]->(grammar)
+                CREATE (go)-[:ILLUSTRATES]->(grammar)
                 """).run();
     }
 
@@ -111,21 +123,30 @@ class LearningFlowTest {
      */
     @Test
     void gardenView_repaintsTopic_afterMasteryMark() {
-        // карточка слова: атрибуты, формы, переводы и синонимы приехали из графа,
+        // карточка слова-леммы: атрибуты + части речи (variants) с формами/переводами/связями;
         // отметки ещё нет — значит UNKNOWN
-        LexemeCard card = get("/learning/lexemes/" + GO, LexemeCard.class);
+        WordCard card = get("/learning/words/" + GO, WordCard.class);
+        assertThat(card.getId()).isEqualTo(GO);
         assertThat(card.getLemma()).isEqualTo("go");
-        assertThat(card.getPos()).isEqualTo(PartOfSpeech.VERB);
-        assertThat(card.getCefr()).isEqualTo(Cefr.A1);
+        assertThat(card.getIpa()).isEqualTo("/ɡəʊ/");
         assertThat(card.getFreqRank()).isEqualTo(1);
-        assertThat(card.getForms()).extracting(Form::getText).contains("went");
-        assertThat(card.getTranslations()).extracting(Translation::getText).contains("идти");
-        assertThat(card.getSynonyms()).extracting(LexemeRef::getId).contains(MOVE);
         assertThat(card.getStatus()).isEqualTo(MasteryStatus.UNKNOWN);
+        assertThat(card.getVariants()).hasSize(1);
+        WordVariant verb = card.getVariants().get(0);
+        assertThat(verb.getPos()).isEqualTo(PartOfSpeech.VERB);
+        assertThat(verb.getCefr()).isEqualTo(Cefr.A1);
+        assertThat(verb.getForms()).extracting(Form::getText).contains("went");
+        assertThat(verb.getTranslations()).extracting(Translation::getText).contains("идти");
+        assertThat(verb.getSynonyms()).extracting(WordRef::getId).contains(MOVE);
 
         // поиск по префиксу леммы находит слово
-        assertThat(getList("/learning/search?q=go", LEXEME_REFS))
-                .extracting(LexemeRef::getId).contains(GO);
+        assertThat(getList("/learning/search?q=go", WORD_REFS))
+                .extracting(WordRef::getId).contains(GO);
+
+        // все слова по частоте — go (1) и move (2)
+        WordPage all = get("/learning/words?offset=0&limit=100", WordPage.class);
+        assertThat(all.getTotal()).isEqualTo(2);
+        assertThat(all.getWords()).extracting(WordLeaf::getId).contains(GO, MOVE);
 
         // корневые темы отдаются списком
         assertThat(getList("/learning/topics", TOPIC_REFS))
@@ -134,12 +155,11 @@ class LearningFlowTest {
         // ветка сада до отметки — лист серый
         TopicView before = get("/learning/topics/movement", TopicView.class);
         assertThat(before.getTopic().getName()).isEqualTo("Movement");
-        assertThat(before.getTopic().getSlug()).isEqualTo("movement");
-        assertThat(before.getLexemes())
-                .extracting(GardenLeaf::getId, GardenLeaf::getStatus)
+        assertThat(before.getWords())
+                .extracting(WordLeaf::getId, WordLeaf::getStatus)
                 .contains(tuple(GO, MasteryStatus.UNKNOWN));
 
-        // отмечаем слово как известное
+        // отмечаем слово (лемму) как известное
         MasteryRequest request = new MasteryRequest();
         request.setStatus(MasteryStatus.KNOWN);
         MasteryView saved = client().put().uri("/learning/mastery/" + GO)
@@ -149,38 +169,86 @@ class LearningFlowTest {
                 .retrieve()
                 .body(MasteryView.class);
         assertThat(saved).isNotNull();
-        assertThat(saved.getLexemeId()).isEqualTo(GO);
+        assertThat(saved.getWordId()).isEqualTo(GO);
         assertThat(saved.getStatus()).isEqualTo(MasteryStatus.KNOWN);
         assertThat(saved.getUpdatedAt()).isNotNull();
 
         // та же ветка сада — лист позеленел: структура из Neo4j, статус из Postgres
         TopicView after = get("/learning/topics/movement", TopicView.class);
-        assertThat(after.getLexemes())
-                .extracting(GardenLeaf::getId, GardenLeaf::getStatus)
+        assertThat(after.getWords())
+                .extracting(WordLeaf::getId, WordLeaf::getStatus)
                 .contains(tuple(GO, MasteryStatus.KNOWN));
 
         // карточка слова и список моих отметок тоже знают про новый статус
-        assertThat(get("/learning/lexemes/" + GO, LexemeCard.class).getStatus())
+        assertThat(get("/learning/words/" + GO, WordCard.class).getStatus())
                 .isEqualTo(MasteryStatus.KNOWN);
         assertThat(getList("/learning/mastery", MASTERY_VIEWS))
-                .extracting(MasteryView::getLexemeId, MasteryView::getStatus)
+                .extracting(MasteryView::getWordId, MasteryView::getStatus)
                 .contains(tuple(GO, MasteryStatus.KNOWN));
     }
 
-    /** Грамматика читается из того же графа знаний. */
+    /**
+     * Весь ствол грамматики: правила по возрастанию CEFR (present-simple A1 → past-simple A2),
+     * с порядком изучения (prerequisites). Слова-примеры в списке не грузим.
+     */
     @Test
-    void getGrammar_returnsRuleFromGraph() {
+    void listGrammar_returnsTrunkOrderedByCefr_withPrereqs() {
+        List<GrammarView> trunk = getList("/learning/grammar", GRAMMAR_VIEWS);
+
+        assertThat(trunk).extracting(GrammarView::getId)
+                .containsExactly("present-simple", "past-simple");
+        assertThat(trunk).filteredOn(g -> g.getId().equals("past-simple"))
+                .singleElement()
+                .satisfies(g -> assertThat(g.getPrerequisites()).containsExactly("present-simple"));
+        assertThat(trunk).allSatisfy(g -> assertThat(g.getIllustratedBy()).isEmpty());
+    }
+
+    /** Правило по id: атрибуты + предшественники (PREREQUISITE) + слова-примеры (ILLUSTRATES → ключ леммы). */
+    @Test
+    void getGrammar_returnsRuleWithPrereqsAndExamples() {
         GrammarView grammar = get("/learning/grammar/past-simple", GrammarView.class);
 
         assertThat(grammar.getId()).isEqualTo("past-simple");
         assertThat(grammar.getName()).isEqualTo("Past Simple");
-        assertThat(grammar.getCefr()).isEqualTo(Cefr.A1);
+        assertThat(grammar.getCefr()).isEqualTo(Cefr.A2);
+        assertThat(grammar.getPrerequisites()).containsExactly("present-simple");
+        assertThat(grammar.getIllustratedBy()).extracting(WordRef::getId).contains(GO);
     }
 
-    /** Нет узла в графе → доменное NotFoundException разворачивается в 404. */
+    /** Блоки топ-слов (уровни) с прогрессом: go(ранг 1) и move(ранг 2) — оба в топ-100. */
     @Test
-    void unknownLexeme_returns404() {
-        assertThat(status("/learning/lexemes/en:nope:VERB").value()).isEqualTo(404);
+    void bands_listBlocks_top100ContainsSeededWords() {
+        List<Band> bands = getList("/learning/bands", BANDS);
+
+        assertThat(bands).extracting(Band::getId)
+                .containsExactly("top-100", "top-500", "top-1000", "top-3000", "top-5000", "top-10000");
+        assertThat(bands).filteredOn(b -> b.getId().equals("top-100"))
+                .singleElement()
+                .satisfies(b -> assertThat(b.getTotal()).isEqualTo(2));
+    }
+
+    /** «Учить» кладёт слово в очередь на изучение (статус LEARNING) — /learning/study его возвращает. */
+    @Test
+    void study_listsWordsMarkedToLearn() {
+        MasteryRequest request = new MasteryRequest();
+        request.setStatus(MasteryStatus.LEARNING);
+        client().put().uri("/learning/mastery/" + GO)
+                .header("Authorization", "Bearer " + userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(MasteryView.class);
+
+        List<WordLeaf> study = getList("/learning/study", WORD_LEAVES);
+
+        assertThat(study).extracting(WordLeaf::getId).contains(GO);
+        assertThat(study).allSatisfy(w -> assertThat(w.getStatus()).isEqualTo(MasteryStatus.LEARNING));
+    }
+
+    /** Нет слова в графе → доменное NotFoundException разворачивается в 404. */
+    @Test
+    void unknownWord_returns404() {
+        assertThat(status("/learning/words/en:nope").value()).isEqualTo(404);
     }
 
     /** Нет темы → 404 (та же ветка обработчика, другой use case). */
