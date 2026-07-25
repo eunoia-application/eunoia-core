@@ -12,6 +12,7 @@ import com.eunoia.application.learning.model.MasteryStatus;
 import com.eunoia.application.learning.model.MasteryView;
 import com.eunoia.application.learning.model.TopicRef;
 import com.eunoia.application.learning.model.TopicView;
+import com.eunoia.application.learning.model.TreeSnapshot;
 import com.eunoia.application.learning.model.WordCard;
 import com.eunoia.application.learning.model.WordLeaf;
 import com.eunoia.application.learning.model.WordPage;
@@ -64,6 +65,23 @@ class LearningControllerTest {
         Word word = new Word("en:go", "go", null, null, List.of());
         return new ru.eunoia.application.learning.domain.model.WordCard(
                 word, ru.eunoia.application.garden.domain.model.MasteryStatus.UNKNOWN);
+    }
+
+    @Test
+    void getTree_usesUserId_maps_returns200() {
+        var domain = new ru.eunoia.application.learning.domain.model.TreeSnapshot(
+                new ru.eunoia.application.learning.domain.model.TreeVocabulary(0, 0, 0),
+                List.of(), ru.eunoia.application.garden.domain.model.ActivityStats.empty());
+        TreeSnapshot dto = new TreeSnapshot();
+        when(currentUser.id()).thenReturn(USER);
+        when(learningQuery.treeSnapshot(USER)).thenReturn(domain);
+        when(mapper.toTreeSnapshot(domain)).thenReturn(dto);
+
+        ResponseEntity<TreeSnapshot> response = controller.getTree();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isSameAs(dto);
+        verify(learningQuery).treeSnapshot(USER);
     }
 
     @Test

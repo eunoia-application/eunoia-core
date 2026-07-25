@@ -85,6 +85,17 @@ public class LexiconRepositoryAdapter implements LexiconRepositoryPort {
     }
 
     @Override
+    public Map<String, Long> topicWordCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        neo4jClient.query(
+                        "MATCH (l:Lexeme)-[:IN_TOPIC]->(t:Topic) "
+                                + "RETURN t.id AS id, count(DISTINCT l.lemma) AS n")
+                .fetch().all()
+                .forEach(row -> counts.put((String) row.get("id"), ((Number) row.get("n")).longValue()));
+        return counts;
+    }
+
+    @Override
     public Optional<Topic> findTopic(String id) {
         return topicRepo.findById(id).map(this::toTopic);
     }

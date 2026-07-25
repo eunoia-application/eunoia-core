@@ -14,6 +14,7 @@ import com.eunoia.application.learning.model.PartOfSpeech;
 import com.eunoia.application.learning.model.TopicRef;
 import com.eunoia.application.learning.model.TopicView;
 import com.eunoia.application.learning.model.Translation;
+import com.eunoia.application.learning.model.TreeSnapshot;
 import com.eunoia.application.learning.model.WordCard;
 import com.eunoia.application.learning.model.WordLeaf;
 import com.eunoia.application.learning.model.WordPage;
@@ -185,6 +186,36 @@ class LearningFlowTest {
         assertThat(getList("/learning/mastery", MASTERY_VIEWS))
                 .extracting(MasteryView::getWordId, MasteryView::getStatus)
                 .contains(tuple(GO, MasteryStatus.KNOWN));
+    }
+
+    /**
+     * Снапшот дерева одним вызовом: отметка «знаю» отражается и в словаре (листья), и в ветке-теме
+     * (movement), и в журнале активности (сегодня был день → стрик 1). Реальный джойн двух графов.
+     */
+    @Test
+    void tree_snapshotReflectsMarkAndActivity() {
+        MasteryRequest req = new MasteryRequest();
+        req.setStatus(MasteryStatus.KNOWN);
+        client().put().uri("/learning/mastery/" + GO)
+                .header("Authorization", "Bearer " + userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(req).retrieve().body(MasteryView.class);
+
+        TreeSnapshot tree = get("/learning/tree", TreeSnapshot.class);
+
+        assertThat(tree.getVocabulary().getKnown()).isEqualTo(1);
+        assertThat(tree.getVocabulary().getLearning()).isZero();
+        assertThat(tree.getVocabulary().getTotal()).isEqualTo(2);   // go, move
+        assertThat(tree.getTopics())
+                .filteredOn(t -> t.getId().equals("movement"))
+                .singleElement()
+                .satisfies(t -> {
+                    assertThat(t.getKnown()).isEqualTo(1);   // go отмечен и лежит в movement
+                    assertThat(t.getTotal()).isEqualTo(1);
+                });
+        assertThat(tree.getActivity().getStreak()).isEqualTo(1);
+        assertThat(tree.getActivity().getDaysActive30()).isEqualTo(1);
+        assertThat(tree.getActivity().getLastActiveDate()).isNotNull();
     }
 
     /**

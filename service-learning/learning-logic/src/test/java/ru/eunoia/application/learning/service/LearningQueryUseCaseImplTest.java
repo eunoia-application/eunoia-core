@@ -1,21 +1,26 @@
 package ru.eunoia.application.learning.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.eunoia.application.garden.domain.model.ActivityStats;
 import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
+import ru.eunoia.application.garden.port.in.ActivityUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 import ru.eunoia.application.knowledge.domain.model.Cefr;
 import ru.eunoia.application.knowledge.domain.model.Grammar;
@@ -28,6 +33,8 @@ import ru.eunoia.application.knowledge.domain.model.WordSummary;
 import ru.eunoia.application.knowledge.port.out.LexiconRepositoryPort;
 import ru.eunoia.application.learning.domain.model.Band;
 import ru.eunoia.application.learning.domain.model.TopicView;
+import ru.eunoia.application.learning.domain.model.TreeSnapshot;
+import ru.eunoia.application.learning.domain.model.TreeTopic;
 import ru.eunoia.application.learning.domain.model.WordCard;
 import ru.eunoia.application.learning.domain.model.WordLeaf;
 import ru.eunoia.application.learning.domain.model.WordPage;
@@ -46,18 +53,70 @@ class LearningQueryUseCaseImplTest {
     private LexiconRepositoryPort lexicon;
     @Mock
     private MasteryRepositoryPort mastery;
+    @Mock
+    private ActivityUseCase activity;
 
     private LearningQueryUseCaseImpl useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new LearningQueryUseCaseImpl(lexicon, mastery);
+        useCase = new LearningQueryUseCaseImpl(lexicon, mastery, activity);
     }
 
     private static Word go() {
         var verb = new LexemeVariant(PartOfSpeech.VERB, Cefr.A1, 42,
                 List.of(), List.of(), List.of(), List.of(), List.of());
         return new Word(GO, "go", "/ɡoʊ/", 42, List.of(verb));
+    }
+
+    @Test
+    void treeSnapshot_joinsVocabularyTopicsAndActivity() {
+        Topic animals = new Topic("animals", "Животные", "animals");
+        Topic travel = new Topic("travel", "Город и транспорт", "travel");
+        Topic food = new Topic("food", "Еда и напитки", "food");   // тема без моих отметок
+        var marks = List.of(
+                new Mastery(USER, GO, MasteryStatus.KNOWN, LocalDateTime.now()),
+                new Mastery(USER, "en:run", MasteryStatus.LEARNING, LocalDateTime.now()));
+        when(mastery.findByUser(USER)).thenReturn(marks);
+        when(lexicon.countWords()).thenReturn(5863L);
+        when(lexicon.wordsByKeys(Set.of(GO, "en:run"))).thenReturn(List.of(
+                new WordSummary(GO, "go", List.of(PartOfSpeech.VERB), Cefr.A1, 1, List.of(animals)),
+                new WordSummary("en:run", "run", List.of(PartOfSpeech.VERB), Cefr.A1, 200, List.of(travel))));
+        when(lexicon.topicWordCounts()).thenReturn(Map.of("animals", 140L, "travel", 80L, "food", 200L));
+        when(lexicon.topicRoots()).thenReturn(List.of(animals, travel, food));
+        var stats = new ActivityStats(4, LocalDate.of(2026, 7, 25), 11);
+        when(activity.summary(USER)).thenReturn(stats);
+
+        TreeSnapshot snap = useCase.treeSnapshot(USER);
+
+        assertThat(snap.vocabulary().known()).isEqualTo(1);
+        assertThat(snap.vocabulary().learning()).isEqualTo(1);
+        assertThat(snap.vocabulary().total()).isEqualTo(5863);
+        assertThat(snap.topics())
+                .extracting(TreeTopic::id, TreeTopic::known, TreeTopic::learning, TreeTopic::total)
+                .containsExactly(
+                        tuple("animals", 1, 0, 140),
+                        tuple("travel", 0, 1, 80),
+                        tuple("food", 0, 0, 200));
+        assertThat(snap.activity()).isSameAs(stats);
+    }
+
+    @Test
+    void treeSnapshot_noMarks_zeroProgress() {
+        when(mastery.findByUser(USER)).thenReturn(List.of());
+        when(lexicon.countWords()).thenReturn(5863L);
+        when(lexicon.wordsByKeys(Set.of())).thenReturn(List.of());
+        when(lexicon.topicWordCounts()).thenReturn(Map.of("animals", 140L));
+        when(lexicon.topicRoots()).thenReturn(List.of(new Topic("animals", "Животные", "animals")));
+        when(activity.summary(USER)).thenReturn(ActivityStats.empty());
+
+        TreeSnapshot snap = useCase.treeSnapshot(USER);
+
+        assertThat(snap.vocabulary().known()).isZero();
+        assertThat(snap.vocabulary().learning()).isZero();
+        assertThat(snap.topics()).singleElement()
+                .extracting(TreeTopic::known, TreeTopic::total).isEqualTo(List.of(0, 140));
+        assertThat(snap.activity().streak()).isZero();
     }
 
     @Test

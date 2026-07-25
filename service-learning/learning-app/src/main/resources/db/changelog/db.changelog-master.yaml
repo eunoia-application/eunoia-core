@@ -16,3 +16,19 @@ databaseChangeLog:
             tableName: mastery
             columnNames: user_id, lexeme_id
             constraintName: pk_mastery
+
+  # Журнал занятий: (user_id, day) → число действий за день. Питает стрики/погоду/сезоны дерева.
+  - changeSet:
+      id: 002-create-activity-log
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: activity_log
+            columns:
+              - column: { name: user_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: day, type: date, constraints: { nullable: false } }
+              - column: { name: actions, type: int, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: activity_log
+            columnNames: user_id, day
+            constraintName: pk_activity_log

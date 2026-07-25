@@ -26,6 +26,9 @@ public interface LexiconRepositoryPort {
     /** Корневые темы (верх дерева тем). */
     List<Topic> topicRoots();
 
+    /** Число слов (лемм) в каждой ветке-теме: topicId → count — для прогресса веток дерева. */
+    Map<String, Long> topicWordCounts();
+
     Optional<Topic> findTopic(String id);
 
     /** Слова темы (леммы) — лёгкие сводки для листьев сада. */

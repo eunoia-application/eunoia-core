@@ -17,9 +17,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
+import ru.eunoia.application.garden.port.in.ActivityUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 
-/** Отметки мастерства: фиксируем факт + время и делегируем чтение в порт. */
+/** Отметки мастерства: фиксируем факт + время, пишем активность и делегируем чтение в порт. */
 @ExtendWith(MockitoExtension.class)
 class MasteryUseCaseImplTest {
 
@@ -28,16 +29,18 @@ class MasteryUseCaseImplTest {
 
     @Mock
     private MasteryRepositoryPort repository;
+    @Mock
+    private ActivityUseCase activity;
 
     private MasteryUseCaseImpl useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new MasteryUseCaseImpl(repository);
+        useCase = new MasteryUseCaseImpl(repository, activity);
     }
 
     @Test
-    void setStatus_savesWithStampAndReturnsSaved() {
+    void setStatus_savesStampsRecordsActivityAndReturnsSaved() {
         Mastery saved = new Mastery(USER, LEXEME, MasteryStatus.KNOWN, LocalDateTime.now());
         when(repository.save(any())).thenReturn(saved);
         LocalDateTime before = LocalDateTime.now();
@@ -50,6 +53,7 @@ class MasteryUseCaseImplTest {
         assertThat(captor.getValue().lexemeId()).isEqualTo(LEXEME);
         assertThat(captor.getValue().status()).isEqualTo(MasteryStatus.KNOWN);
         assertThat(captor.getValue().updatedAt()).isAfterOrEqualTo(before);
+        verify(activity).record(USER);
         assertThat(result).isSameAs(saved);
     }
 

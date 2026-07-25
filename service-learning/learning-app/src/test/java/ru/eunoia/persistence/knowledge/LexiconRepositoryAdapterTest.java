@@ -144,6 +144,12 @@ class LexiconRepositoryAdapterTest {
     }
 
     @Test
+    void topicWordCounts_countsDistinctLemmasPerTopic() {
+        // в movement связан go (VERB) → одна уникальная лемма
+        assertThat(adapter.topicWordCounts()).containsEntry("movement", 1L);
+    }
+
+    @Test
     void findTopic_mapsNode() {
         Topic topic = adapter.findTopic("movement").orElseThrow();
 

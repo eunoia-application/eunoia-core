@@ -8,12 +8,16 @@ import ru.eunoia.application.knowledge.domain.model.WordRef;
 import ru.eunoia.application.learning.domain.model.Band;
 import ru.eunoia.application.learning.domain.model.GrammarView;
 import ru.eunoia.application.learning.domain.model.TopicView;
+import ru.eunoia.application.learning.domain.model.TreeSnapshot;
 import ru.eunoia.application.learning.domain.model.WordCard;
 import ru.eunoia.application.learning.domain.model.WordLeaf;
 import ru.eunoia.application.learning.domain.model.WordPage;
 
 /** Чтение учебного контента с наложением прогресса (garden-view). Единица — слово (лемма). */
 public interface LearningQueryUseCase {
+
+    /** Снапшот сада для дерева: словарь (листья) + ветки-темы + активность — одним вызовом. */
+    TreeSnapshot treeSnapshot(UUID userId);
 
     /** Карточка слова (лемма + части речи + связи) + мой статус. Пусто, если слова нет. */
     Optional<WordCard> wordCard(UUID userId, String lemmaKey);

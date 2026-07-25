@@ -10,6 +10,10 @@ import com.eunoia.application.learning.model.PartOfSpeech;
 import com.eunoia.application.learning.model.TopicRef;
 import com.eunoia.application.learning.model.TopicView;
 import com.eunoia.application.learning.model.Translation;
+import com.eunoia.application.learning.model.TreeActivity;
+import com.eunoia.application.learning.model.TreeSnapshot;
+import com.eunoia.application.learning.model.TreeTopic;
+import com.eunoia.application.learning.model.TreeVocabulary;
 import com.eunoia.application.learning.model.WordCard;
 import com.eunoia.application.learning.model.WordLeaf;
 import com.eunoia.application.learning.model.WordPage;
@@ -26,6 +30,42 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class LearningApiMapper {
+
+    /** Снапшот сада для дерева: словарь (листья) + ветки-темы + активность. */
+    public TreeSnapshot toTreeSnapshot(ru.eunoia.application.learning.domain.model.TreeSnapshot snap) {
+        TreeSnapshot dto = new TreeSnapshot();
+        dto.setVocabulary(toTreeVocabulary(snap.vocabulary()));
+        dto.setTopics(snap.topics().stream().map(this::toTreeTopic).toList());
+        dto.setActivity(toTreeActivity(snap.activity()));
+        return dto;
+    }
+
+    private TreeVocabulary toTreeVocabulary(ru.eunoia.application.learning.domain.model.TreeVocabulary v) {
+        TreeVocabulary dto = new TreeVocabulary();
+        dto.setKnown(v.known());
+        dto.setLearning(v.learning());
+        dto.setTotal(v.total());
+        return dto;
+    }
+
+    private TreeTopic toTreeTopic(ru.eunoia.application.learning.domain.model.TreeTopic t) {
+        TreeTopic dto = new TreeTopic();
+        dto.setId(t.id());
+        dto.setName(t.name());
+        dto.setSlug(t.slug());
+        dto.setKnown(t.known());
+        dto.setLearning(t.learning());
+        dto.setTotal(t.total());
+        return dto;
+    }
+
+    private TreeActivity toTreeActivity(ru.eunoia.application.garden.domain.model.ActivityStats a) {
+        TreeActivity dto = new TreeActivity();
+        dto.setStreak(a.streak());
+        dto.setLastActiveDate(a.lastActiveDate());
+        dto.setDaysActive30(a.daysActive30());
+        return dto;
+    }
 
     /** Карточка слова: лемма + части речи (variants) + мой статус (по лемме). */
     public WordCard toWordCard(ru.eunoia.application.learning.domain.model.WordCard card) {

@@ -7,6 +7,7 @@ import com.eunoia.application.learning.model.MasteryRequest;
 import com.eunoia.application.learning.model.MasteryView;
 import com.eunoia.application.learning.model.TopicRef;
 import com.eunoia.application.learning.model.TopicView;
+import com.eunoia.application.learning.model.TreeSnapshot;
 import com.eunoia.application.learning.model.WordCard;
 import com.eunoia.application.learning.model.WordLeaf;
 import com.eunoia.application.learning.model.WordPage;
@@ -39,6 +40,11 @@ public class LearningController implements LearningApi {
         this.mastery = mastery;
         this.currentUser = currentUser;
         this.mapper = mapper;
+    }
+
+    @Override
+    public ResponseEntity<TreeSnapshot> getTree() {
+        return ResponseEntity.ok(mapper.toTreeSnapshot(learningQuery.treeSnapshot(currentUser.id())));
     }
 
     @Override

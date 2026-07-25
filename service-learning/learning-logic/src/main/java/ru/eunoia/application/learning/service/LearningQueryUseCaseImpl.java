@@ -1,11 +1,13 @@
 package ru.eunoia.application.learning.service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
+import ru.eunoia.application.garden.port.in.ActivityUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 import ru.eunoia.application.knowledge.domain.model.Topic;
 import ru.eunoia.application.knowledge.domain.model.WordRef;
@@ -14,6 +16,9 @@ import ru.eunoia.application.knowledge.port.out.LexiconRepositoryPort;
 import ru.eunoia.application.learning.domain.model.Band;
 import ru.eunoia.application.learning.domain.model.GrammarView;
 import ru.eunoia.application.learning.domain.model.TopicView;
+import ru.eunoia.application.learning.domain.model.TreeSnapshot;
+import ru.eunoia.application.learning.domain.model.TreeTopic;
+import ru.eunoia.application.learning.domain.model.TreeVocabulary;
 import ru.eunoia.application.learning.domain.model.WordCard;
 import ru.eunoia.application.learning.domain.model.WordLeaf;
 import ru.eunoia.application.learning.domain.model.WordPage;
@@ -40,10 +45,55 @@ public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
 
     private final LexiconRepositoryPort lexicon;
     private final MasteryRepositoryPort mastery;
+    private final ActivityUseCase activity;
 
-    public LearningQueryUseCaseImpl(LexiconRepositoryPort lexicon, MasteryRepositoryPort mastery) {
+    public LearningQueryUseCaseImpl(LexiconRepositoryPort lexicon, MasteryRepositoryPort mastery,
+                                    ActivityUseCase activity) {
         this.lexicon = lexicon;
         this.mastery = mastery;
+        this.activity = activity;
+    }
+
+    @Override
+    public TreeSnapshot treeSnapshot(UUID userId) {
+        List<Mastery> marks = mastery.findByUser(userId);
+
+        // листья: суммарный словарный прогресс + карта статусов по id (один проход)
+        int known = 0;
+        int learning = 0;
+        Map<String, MasteryStatus> statusById = new HashMap<>();
+        for (Mastery m : marks) {
+            statusById.put(m.lexemeId(), m.status());
+            if (m.status() == MasteryStatus.KNOWN) {
+                known++;
+            } else if (m.status() == MasteryStatus.LEARNING) {
+                learning++;
+            }
+        }
+        TreeVocabulary vocabulary = new TreeVocabulary(known, learning, (int) lexicon.countWords());
+
+        // ветки: total по темам (из канона) × мой прогресс по каждой теме (слово даёт вклад
+        // в КАЖДУЮ свою тему).
+        Map<String, Long> totals = lexicon.topicWordCounts();
+        Map<String, int[]> mine = new HashMap<>();   // topicId → [known, learning]
+        for (WordSummary w : lexicon.wordsByKeys(statusById.keySet())) {
+            MasteryStatus st = statusById.getOrDefault(w.id(), MasteryStatus.UNKNOWN);
+            for (Topic t : w.topics()) {
+                int[] kl = mine.computeIfAbsent(t.id(), k -> new int[2]);
+                if (st == MasteryStatus.KNOWN) {
+                    kl[0]++;
+                } else if (st == MasteryStatus.LEARNING) {
+                    kl[1]++;
+                }
+            }
+        }
+        List<TreeTopic> topics = lexicon.topicRoots().stream().map(t -> {
+            int[] kl = mine.getOrDefault(t.id(), new int[2]);
+            return new TreeTopic(t.id(), t.name(), t.slug(), kl[0], kl[1],
+                    totals.getOrDefault(t.id(), 0L).intValue());
+        }).toList();
+
+        return new TreeSnapshot(vocabulary, topics, activity.summary(userId));
     }
 
     @Override

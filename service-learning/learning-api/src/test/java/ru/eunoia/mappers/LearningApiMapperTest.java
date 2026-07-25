@@ -2,6 +2,7 @@ package ru.eunoia.mappers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +34,46 @@ class LearningApiMapperTest {
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 6, 7, 8, 9, 10);
 
     private final LearningApiMapper mapper = new LearningApiMapper();
+
+    @Test
+    void toTreeSnapshot_mapsVocabularyTopicsActivity() {
+        var domain = new ru.eunoia.application.learning.domain.model.TreeSnapshot(
+                new ru.eunoia.application.learning.domain.model.TreeVocabulary(12, 3, 5863),
+                List.of(new ru.eunoia.application.learning.domain.model.TreeTopic(
+                        "animals", "Животные", "animals", 4, 1, 140)),
+                new ru.eunoia.application.garden.domain.model.ActivityStats(
+                        7, LocalDate.of(2026, 7, 25), 11));
+
+        var dto = mapper.toTreeSnapshot(domain);
+
+        assertThat(dto.getVocabulary().getKnown()).isEqualTo(12);
+        assertThat(dto.getVocabulary().getLearning()).isEqualTo(3);
+        assertThat(dto.getVocabulary().getTotal()).isEqualTo(5863);
+        assertThat(dto.getTopics()).singleElement().satisfies(t -> {
+            assertThat(t.getId()).isEqualTo("animals");
+            assertThat(t.getName()).isEqualTo("Животные");
+            assertThat(t.getSlug()).isEqualTo("animals");
+            assertThat(t.getKnown()).isEqualTo(4);
+            assertThat(t.getLearning()).isEqualTo(1);
+            assertThat(t.getTotal()).isEqualTo(140);
+        });
+        assertThat(dto.getActivity().getStreak()).isEqualTo(7);
+        assertThat(dto.getActivity().getLastActiveDate()).isEqualTo(LocalDate.of(2026, 7, 25));
+        assertThat(dto.getActivity().getDaysActive30()).isEqualTo(11);
+    }
+
+    @Test
+    void toTreeSnapshot_emptyActivity_nullLastActiveDate() {
+        var domain = new ru.eunoia.application.learning.domain.model.TreeSnapshot(
+                new ru.eunoia.application.learning.domain.model.TreeVocabulary(0, 0, 0),
+                List.of(), ru.eunoia.application.garden.domain.model.ActivityStats.empty());
+
+        var dto = mapper.toTreeSnapshot(domain);
+
+        assertThat(dto.getActivity().getLastActiveDate()).isNull();
+        assertThat(dto.getActivity().getStreak()).isZero();
+        assertThat(dto.getTopics()).isEmpty();
+    }
 
     @Test
     void toWordCard_mapsWord_variants_relations_enums_status() {

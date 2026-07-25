@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
+import ru.eunoia.application.garden.port.in.ActivityUseCase;
 import ru.eunoia.application.garden.port.in.MasteryUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 
@@ -14,14 +15,18 @@ import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 public class MasteryUseCaseImpl implements MasteryUseCase {
 
     private final MasteryRepositoryPort mastery;
+    private final ActivityUseCase activity;
 
-    public MasteryUseCaseImpl(MasteryRepositoryPort mastery) {
+    public MasteryUseCaseImpl(MasteryRepositoryPort mastery, ActivityUseCase activity) {
         this.mastery = mastery;
+        this.activity = activity;
     }
 
     @Override
     public Mastery setStatus(UUID userId, String lexemeId, MasteryStatus status) {
-        return mastery.save(new Mastery(userId, lexemeId, status, LocalDateTime.now()));
+        Mastery saved = mastery.save(new Mastery(userId, lexemeId, status, LocalDateTime.now()));
+        activity.record(userId);   // фиксируем день занятий (для стриков/погоды/сезонов дерева)
+        return saved;
     }
 
     @Override

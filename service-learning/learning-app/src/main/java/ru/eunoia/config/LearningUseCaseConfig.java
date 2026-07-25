@@ -2,6 +2,7 @@ package ru.eunoia.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.eunoia.application.garden.port.in.ActivityUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 import ru.eunoia.application.knowledge.port.out.LexiconRepositoryPort;
 import ru.eunoia.application.learning.port.in.LearningQueryUseCase;
@@ -13,7 +14,8 @@ public class LearningUseCaseConfig {
 
     @Bean
     public LearningQueryUseCase learningQueryUseCase(LexiconRepositoryPort lexicon,
-                                                     MasteryRepositoryPort mastery) {
-        return new LearningQueryUseCaseImpl(lexicon, mastery);
+                                                     MasteryRepositoryPort mastery,
+                                                     ActivityUseCase activityUseCase) {
+        return new LearningQueryUseCaseImpl(lexicon, mastery, activityUseCase);
     }
 }
