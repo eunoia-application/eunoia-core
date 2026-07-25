@@ -3,11 +3,15 @@ package ru.eunoia.ingest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -35,9 +39,14 @@ public final class LearningIngest {
         }
 
         // 1. Частотник (весь, с рангами). Это список словоформ, а не лемм — отбор топ-N
-        //    лемм делаем ниже, уже свернув частоту форм в лемму.
+        //    лемм делаем ниже; ранг леммы берём по ней самой (см. цикл), словоформы отсекаем.
         FrequencyList freq = FrequencyList.load(a.freq());
         err("Частотник загружен: словоформ %d. Цель — топ-%d лемм.", freq.size(), a.limit());
+
+        // 1b. Стоп-лист служебных слов (the/of/and/be/...): их не заводим карточками — это
+        //     грамматика, а не лексика. См. seed/stopwords.txt. Пусто, если --stopwords не задан.
+        Set<String> stopwords = loadStopwords(a.stopwords());
+        err("Стоп-слов загружено: %d.", stopwords.size());
 
         // 2. Стрим kaikki-файлов: фильтр (язык/часть речи/частота) → аккумулятор.
         LexemeAccumulator acc = new LexemeAccumulator();
@@ -74,9 +83,16 @@ public final class LearningIngest {
                     if (lemma.contains(" ") || lemma.contains(".")) {
                         continue;
                     }
-                    // частота леммы = минимум рангов её форм (сворачиваем go/going/went/gone
-                    // в одну лемму); нет ни одной формы в частотнике → лемма не частотная
-                    Integer rank = lemma.isEmpty() ? null : aggregatedRank(entry, lemma, freq);
+                    // служебные слова (the/of/and/be/...) — грамматика, не лексика для карточек;
+                    // их редкие контентные омонимы (and=сущ., ha←has) тащат чужую частоту,
+                    // мусорные категории и пустой перевод — насовсем мимо графа
+                    if (stopwords.contains(lemma)) {
+                        continue;
+                    }
+                    // частота = ранг самой леммы (её базовой формы) в частотнике. Ранг по формам
+                    // НЕ берём: словоформы went/goes и так отсекаются как form-of выше, а свёртка
+                    // по формам наделяла редкое слово чужой частотой (ha наследовал ранг has).
+                    Integer rank = lemma.isEmpty() ? null : freq.rankOf(lemma);
                     if (rank == null) {
                         continue;
                     }
@@ -96,6 +112,10 @@ public final class LearningIngest {
         acc.retainTop(a.limit());
         err("Оставили топ-%d лемм: %d.", a.limit(), acc.lexemes().size());
 
+        // 2b'. Плотное переранжирование по лемме: после стоп-листа в сырых рангах дыры, поэтому
+        //      нумеруем оставшиеся леммы подряд 1..N — блоки «топ-100/500/…» станут ровными.
+        acc.denseRankByLemma();
+
         // 2c. Добор переводов из второго источника (WikDict), если задан --dict.
         //     kaikki-переводы уже в лексемах и остаются в приоритете; WikDict закрывает дыры.
         WikDictTranslations dict = a.dict() == null
@@ -103,11 +123,13 @@ public final class LearningIngest {
                 : WikDictTranslations.load(a.dict());
         mergeTranslations(acc, dict);
 
-        // 2d. Раскладка по темам: категории слова → ветка сада (если задан --topics).
+        // 2d. Раскладка по темам: сперва курируемый сид «слово→ветка» (точный, если задан
+        //     --word-topics), для остальных — фолбэк по kaikki-категориям (если задан --topics).
         TopicCatalog topics = a.topics() == null
                 ? TopicCatalog.empty()
                 : TopicCatalog.load(a.topics());
-        assignTopics(acc, topics);
+        Map<String, String> wordTopics = loadWordTopics(a.wordTopics(), topics);
+        assignTopics(acc, topics, wordTopics);
 
         // 2e. Грамматика: скелет правил + связь ILLUSTRATES из неправильных форм (если --grammar).
         GrammarCatalog grammar = a.grammar() == null
@@ -134,19 +156,62 @@ public final class LearningIngest {
     }
 
     /**
-     * Свёрнутая частота леммы: минимальный ранг среди самой леммы и всех её словоформ.
-     * Так {@code go}(123)/{@code going}(500)/{@code went}(1179)/... дают лемме её лучший ранг,
-     * а не плодят отдельные «слова». null — если ни лемма, ни её формы в частотник не попали.
+     * Стоп-лист служебных слов из файла: по слову в строке, {@code #} — комментарий, регистр
+     * не важен. null-путь (флаг не задан) → пустой набор, тул работает как раньше.
      */
-    private static Integer aggregatedRank(JsonNode entry, String lemma, FrequencyList freq) {
-        Integer best = freq.rankOf(lemma);
-        for (String form : LexemeAccumulator.formTexts(entry)) {
-            Integer r = freq.rankOf(form.toLowerCase());
-            if (r != null && (best == null || r < best)) {
-                best = r;
+    private static Set<String> loadStopwords(Path path) throws IOException {
+        if (path == null) {
+            return Set.of();
+        }
+        Set<String> out = new HashSet<>();
+        for (String line : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+            String w = line.strip().toLowerCase();
+            if (!w.isEmpty() && !w.startsWith("#")) {
+                out.add(w);
             }
         }
-        return best;
+        return out;
+    }
+
+    /**
+     * Курируемый сид «слово→ветка» ({@code лемма <TAB> branchId}; {@code #} — комментарий).
+     * Это ручная разметка бытовой лексики (dog→animals, apple→food): у общих слов Викисловарь
+     * не тегает очевидный смысл, поэтому темы для них задаём руками, а не из категорий.
+     * Ветка должна существовать в topics.tsv — строки с неизвестной веткой пропускаем (иначе
+     * получим висячий IN_TOPIC на несуществующий Topic). Особая ветка {@code "-"} = принудительно
+     * «Разное» (подавить мусорный фолбэк по категориям). null-путь → пустая карта.
+     */
+    private static Map<String, String> loadWordTopics(Path path, TopicCatalog topics)
+            throws IOException {
+        if (path == null) {
+            return Map.of();
+        }
+        Set<String> validBranches = new HashSet<>();
+        for (TopicCatalog.Branch b : topics.branches()) {
+            validBranches.add(b.id());
+        }
+        Map<String, String> out = new HashMap<>();
+        int unknown = 0;
+        for (String line : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+            String s = line.strip();
+            if (s.isEmpty() || s.startsWith("#")) {
+                continue;
+            }
+            String[] col = s.split("\t");
+            if (col.length < 2 || col[0].isBlank() || col[1].isBlank()) {
+                continue;                       // битая строка
+            }
+            String branch = col[1].strip();
+            if (!branch.equals("-") && !validBranches.contains(branch)) {
+                unknown++;
+                continue;                       // ветки нет в topics.tsv ("-" разрешён — «Разное»)
+            }
+            out.put(col[0].strip().toLowerCase(), branch);
+        }
+        if (unknown > 0) {
+            err("  word-topics: пропущено строк с неизвестной веткой: %d", unknown);
+        }
+        return out;
     }
 
     /**
@@ -177,15 +242,25 @@ public final class LearningIngest {
      * (первая подошедшая по приоритету каталога). Часть слов темы не получит — это нормально
      * (абстрактная/общая лексика вне тем; она всё равно в графе и в поиске).
      */
-    private static void assignTopics(LexemeAccumulator acc, TopicCatalog topics) {
+    private static void assignTopics(LexemeAccumulator acc, TopicCatalog topics,
+                                     Map<String, String> wordTopics) {
         int withTopic = 0;
+        int curated = 0;
         for (LexemeData d : acc.lexemes()) {
-            d.topicId = topics.resolve(d.categories);
+            String forced = wordTopics.get(d.lemma);   // курируемый сид в приоритете (точный)
+            if (forced != null) {
+                // "-" = принудительно «Разное» (подавляем мусорный фолбэк, напр. media→Тело)
+                d.topicId = "-".equals(forced) ? null : forced;
+                curated++;
+            } else {
+                d.topicId = topics.resolve(d.categories);   // фолбэк по kaikki-категориям
+            }
             if (d.topicId != null) {
                 withTopic++;
             }
         }
-        err("Темы: слов с веткой %d/%d.", withTopic, acc.lexemes().size());
+        err("Темы: слов с веткой %d/%d (из них курируемым сидом %d).",
+                withTopic, acc.lexemes().size(), curated);
     }
 
     /**
@@ -228,19 +303,23 @@ public final class LearningIngest {
                        --uri bolt://localhost:7687 --user neo4j --pass <pwd> \\
                        [--database <name>] [--dict <path/en-ru.tsv>] \\
                        [--topics <path/topics.tsv>] [--grammar <path/grammar.tsv>] \\
+                       [--stopwords <path/stopwords.txt>] [--word-topics <path/word-topics.tsv>] \\
                        <kaikki-1.jsonl> [<kaikki-2.jsonl> ...]
 
                 Обязательны все флаги, кроме --database (по умолчанию neo4j), --dict
                 (второй источник переводов, WikDict TSV: word<TAB>POS<TAB>перевод|перевод),
-                --topics (таксономия тем: id<TAB>name<TAB>slug<TAB>parent<TAB>категории)
-                и --grammar (скелет грамматики: id<TAB>name<TAB>cefr<TAB>prereq),
+                --topics (таксономия тем: id<TAB>name<TAB>slug<TAB>parent<TAB>категории),
+                --grammar (скелет грамматики: id<TAB>name<TAB>cefr<TAB>prereq),
+                --stopwords (служебные слова мимо графа, по слову в строке),
+                --word-topics (курируемый сид «слово<TAB>ветка», в приоритете над категориями),
                 и хотя бы один kaikki-файл (позиционные аргументы).
                 """);
     }
 
     /** Разобранные аргументы: флаги + позиционные пути kaikki-файлов. */
     private record Args(Path freq, int limit, String uri, String user, String pass,
-                        String database, Path dict, Path topics, Path grammar, List<Path> kaikki) {
+                        String database, Path dict, Path topics, Path grammar,
+                        Path stopwords, Path wordTopics, List<Path> kaikki) {
 
         static Args parse(String[] argv) {
             Path freq = null;
@@ -252,6 +331,8 @@ public final class LearningIngest {
             Path dict = null;            // второй источник переводов (WikDict TSV); опционально
             Path topics = null;          // таксономия тем (topics.tsv); опционально
             Path grammar = null;         // скелет грамматики (grammar.tsv); опционально
+            Path stopwords = null;       // стоп-лист служебных слов (stopwords.txt); опционально
+            Path wordTopics = null;      // курируемый сид слово→ветка (word-topics.tsv); опционально
             List<Path> kaikki = new ArrayList<>();
             try {
                 for (int i = 0; i < argv.length; i++) {
@@ -265,6 +346,8 @@ public final class LearningIngest {
                         case "--dict" -> dict = Path.of(argv[++i]);
                         case "--topics" -> topics = Path.of(argv[++i]);
                         case "--grammar" -> grammar = Path.of(argv[++i]);
+                        case "--stopwords" -> stopwords = Path.of(argv[++i]);
+                        case "--word-topics" -> wordTopics = Path.of(argv[++i]);
                         default -> kaikki.add(Path.of(argv[i]));  // позиционные = kaikki-файлы
                     }
                 }
@@ -275,7 +358,8 @@ public final class LearningIngest {
                     || user == null || pass == null || kaikki.isEmpty()) {
                 return null;
             }
-            return new Args(freq, limit, uri, user, pass, database, dict, topics, grammar, kaikki);
+            return new Args(freq, limit, uri, user, pass, database,
+                    dict, topics, grammar, stopwords, wordTopics, kaikki);
         }
     }
 }

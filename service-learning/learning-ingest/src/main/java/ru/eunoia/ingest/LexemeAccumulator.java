@@ -35,8 +35,8 @@ final class LexemeAccumulator {
 
     /**
      * Добавляет kaikki-запись <b>леммы</b>. pos уже смапплен вызывающим в имя enum
-     * (VERB/NOUN/ADJECTIVE/ADVERB), rank — свёрнутая частота (минимум по формам). id =
-     * "en:{lemma}:{POS}"; при повторном id домерживаем данные и держим наименьший ранг.
+     * (VERB/NOUN/ADJECTIVE/ADVERB), rank — ранг частоты. id = "en:{lemma}:{POS}"; при
+     * повторном id (другая этимология) домерживаем данные и держим наименьший ранг.
      */
     void add(JsonNode entry, String pos, int rank) {
         String lemma = entry.path("word").asText("").toLowerCase();
@@ -48,6 +48,11 @@ final class LexemeAccumulator {
         if (data == null) {
             data = new LexemeData(id, lemma, pos, rank);
             byId.put(id, data);
+            // Категории берём ТОЛЬКО с первой записи (этимология 1 = основной смысл слова).
+            // У общих слов базовый смысл без категорий, а доменная категория висит на смысле-
+            // омониме из ПОЗДНЕЙ этимологии (home→Computing «клавиша Home», page→Biochemistry
+            // «гель PAGE») — если брать со всех, слово улетает не в ту ветку. Только с этим. 1.
+            collectCategories(entry, data);
         } else {
             data.mergeRank(rank);   // другая этимология той же леммы → берём частоту получше
         }
@@ -55,7 +60,6 @@ final class LexemeAccumulator {
         collectForms(entry, data);
         collectTranslations(entry, data);
         collectRelations(entry, id, pos, data);
-        collectCategories(entry, data);
         collectIpa(entry, data);
     }
 
@@ -77,6 +81,34 @@ final class LexemeAccumulator {
         }
         byId.clear();
         byId.putAll(kept);
+    }
+
+    /**
+     * Плотное переранжирование по лемме. После стоп-листа в «сырых» рангах частотника зияют
+     * дыры (служебные слова вынуты → в топ-100 остаётся ~25 слов). Здесь оставшиеся <b>леммы</b>
+     * нумеруем подряд 1..N по их лучшему рангу и ставим этот плотный ранг всем POS-вариантам
+     * леммы. Тогда блоки «топ-100/500/…» содержат ровно столько слов, сколько в названии, а
+     * freqRank означает «место среди слов для изучения», а не сырую (веб-)частоту с дырами.
+     * Вызывать один раз, после {@link #retainTop}.
+     */
+    void denseRankByLemma() {
+        // лучший (минимальный) сырой ранг каждой леммы — вариантов у леммы несколько (по POS)
+        Map<String, Integer> best = new LinkedHashMap<>();
+        for (LexemeData d : byId.values()) {
+            best.merge(d.lemma, d.freqRank, Integer::min);
+        }
+        // порядок лемм по лучшему рангу → плотный ранг 1..N
+        List<String> lemmas = new ArrayList<>(best.keySet());
+        lemmas.sort(Comparator.comparingInt(best::get));
+        Map<String, Integer> dense = new LinkedHashMap<>();
+        int r = 1;
+        for (String lemma : lemmas) {
+            dense.put(lemma, r++);
+        }
+        // единый плотный ранг всем вариантам леммы (карточка и блоки берут его)
+        for (LexemeData d : byId.values()) {
+            d.freqRank = dense.get(d.lemma);
+        }
     }
 
     // --- распознавание леммы vs словоформы ---
@@ -128,9 +160,8 @@ final class LexemeAccumulator {
     }
 
     /**
-     * Текст словоформы, годной для графа, либо null — если это мусор таблиц спряжения или
-     * служебная заглушка. Общая точка для двух задач: сбора HAS_FORM и свёртки частоты формы
-     * в лемму (см. {@link #formTexts}).
+     * Текст словоформы, годной для графа (ребро HAS_FORM), либо null — если это мусор таблиц
+     * спряжения, служебная заглушка или НЕ-словоизменительная форма (alt/abbrev/initialism).
      */
     static String cleanFormText(JsonNode f) {
         if (f.has("source")) {
@@ -148,18 +179,6 @@ final class LexemeAccumulator {
             return null;                        // мета-теги таблиц, «грязные» и НЕ-словоизменительные
         }
         return text;                            // (alternative/abbreviation тащат чужую частоту — напр. a→a.m.)
-    }
-
-    /** Годные словоформы записи (тексты) — для свёртки их частоты в лемму. */
-    static List<String> formTexts(JsonNode entry) {
-        List<String> out = new ArrayList<>();
-        for (JsonNode f : entry.path("forms")) {
-            String text = cleanFormText(f);
-            if (text != null) {
-                out.add(text);
-            }
-        }
-        return out;
     }
 
     // --- переводы: только русские ---

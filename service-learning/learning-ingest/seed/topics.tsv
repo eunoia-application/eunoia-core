@@ -6,18 +6,25 @@
 #   (поэтому бытовое — выше технического: salmon с [Foods, Fish] уйдёт в «Еда»).
 # Тул создаёт узлы Topic + рёбра SUBTOPIC (по parentId) + IN_TOPIC (слово→ветка).
 #
+# ВАЖНО про выбор категорий: Викисловарь тегает КОНКРЕТНЫЙ смысл, а базовый (общий) смысл
+# слова — без категорий. Поэтому берём только КОНКРЕТНЫЕ категории («слово с этой меткой почти
+# всегда ПРО эту тему»: Foods, Animals, Body parts, Clothing, Vehicles, Computing…) и выкидываем
+# абстрактно-доменные (Mathematics, Military, Religion, Nautical, People, Tools, Programming…) —
+# они цепляют общие слова через смысл-омоним (way→Roads, see→Christianity, last→Tools). Что не
+# подошло ни к одной ветке — «Разное» (для частотного топа это норма: общая лексика без темы).
+#
 # --- бытовые ветки (гранулярно, под старт) ---
 food	Еда и напитки	food		Foods,Cooking,Beverages,Drinks,Fruits,Vegetables,Breads,Dairy products,Meats,Seafood,Spices,Herbs,Desserts,Cheeses,Alcoholic beverages,Mushrooms,Nuts,Grains,Condiments,Sauces,Pasta
-animals	Животные	animals		Animals,Mammals,Birds,Fish,Insects,Reptiles,Amphibians,Zoology,Molluscs,Arachnids,Crustaceans,Carnivores,Dogs,Cats,Horses
-nature	Растения и природа	nature		Plants,Trees,Flowers,Botany,Fungi,Landforms,Bodies of water,Geography,Weather,Meteorology,Geology,Minerals,Rocks,Seasons,Astronomy,Ecology
-body	Тело и здоровье	body		Anatomy,Body,Body parts,Medicine,Health,Diseases,Pathology,Physiology,Dentistry,Hair
-people	Люди и семья	people		People,Family,Family members,Kinship,Occupations,Personality,Nationalities
+animals	Животные	animals		Animals,Mammals,Birds,Fish,Insects,Reptiles,Amphibians,Molluscs,Arachnids,Crustaceans,Dogs,Cats
+nature	Растения и природа	nature		Plants,Trees,Flowers,Botany,Fungi,Landforms,Bodies of water,Weather,Minerals,Rocks,Seasons,Astronomy
+body	Тело и здоровье	body		Anatomy,Body,Body parts,Health,Diseases,Medicine,Hair
+people	Люди и семья	people		Family,Family members,Kinship,Occupations,Nationalities
 emotions	Эмоции и чувства	emotions		Emotions,Feelings
-home	Дом и быт	home		Buildings,Rooms,Furniture,Containers,Tools,Kitchenware,Cookware,Textiles,Household
+home	Дом и быт	home		Buildings,Rooms,Furniture,Kitchenware,Cookware,Textiles,Household,Containers
 clothing	Одежда	clothing		Clothing,Footwear,Headwear,Fashion,Accessories
-travel	Город и транспорт	travel		Architecture,Construction,Nautical,Aviation,Rail transportation,Automotive,Vehicles,Roads,Cycling,Travel,Tourism
+travel	Город и транспорт	travel		Vehicles,Travel,Tourism,Rail transportation,Automotive,Cycling
 time	Время и календарь	time		Time,Calendar,Chronology,Units of time,Days of the week
-# --- широкие «продвинутые» ветки (техническая масса свёрнута сюда) ---
-science	Наука и техника	science		Mathematics,Geometry,Algebra,Physics,Chemistry,Biology,Sciences,Computing,Programming,Internet,Software,Networking,Engineering,Electronics,Statistics,Logic,Linguistics,Grammar,Philosophy,Education,Biochemistry,Genetics,Telecommunications
-work-society	Работа и общество	work-society		Business,Finance,Economics,Marketing,Accounting,Management,Law,Law enforcement,Politics,Government,Military,Firearms,Religion,Christianity,History
-leisure	Спорт и искусство	leisure		Sports,Football (soccer),Basketball,Baseball,Golf,Cricket,Tennis,Games,Card games,Chess,Video games,Music,Art,Film,Theater,Photography,Dance,Television,Broadcasting
+# --- широкие «продвинутые» ветки (только сильно-тематические категории) ---
+science	Наука и техника	science		Computing,Internet,Software,Electronics,Physics,Chemistry,Biology,Engineering,Sciences,Education
+work-society	Работа и общество	work-society		Business,Finance,Economics,Accounting,Law,Politics,Government
+leisure	Спорт и искусство	leisure		Football (soccer),Basketball,Games,Video games,Music,Art,Film,Theater,Photography,Dance,Television
