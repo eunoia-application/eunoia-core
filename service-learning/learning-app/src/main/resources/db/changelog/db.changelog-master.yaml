@@ -32,3 +32,21 @@ databaseChangeLog:
             tableName: activity_log
             columnNames: user_id, day
             constraintName: pk_activity_log
+
+  # Прогресс по грамматике: (user_id, grammar_id) → статус. Параллель к mastery (по словам);
+  # grammar_id ссылается на узел Grammar в Neo4j без FK. Даёт «высоту» дерева.
+  - changeSet:
+      id: 003-create-grammar-mastery
+      author: eunoia
+      changes:
+        - createTable:
+            tableName: grammar_mastery
+            columns:
+              - column: { name: user_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: grammar_id, type: varchar(120), constraints: { nullable: false } }
+              - column: { name: status, type: varchar(20), constraints: { nullable: false } }
+              - column: { name: updated_at, type: timestamp, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: grammar_mastery
+            columnNames: user_id, grammar_id
+            constraintName: pk_grammar_mastery

@@ -29,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import ru.eunoia.application.garden.domain.model.Mastery;
+import ru.eunoia.application.garden.port.in.GrammarMasteryUseCase;
 import ru.eunoia.application.garden.port.in.MasteryUseCase;
 import ru.eunoia.application.knowledge.domain.model.Grammar;
 import ru.eunoia.application.knowledge.domain.model.Topic;
@@ -54,6 +55,8 @@ class LearningControllerTest {
     @Mock
     private MasteryUseCase mastery;
     @Mock
+    private GrammarMasteryUseCase grammarMastery;
+    @Mock
     private CurrentUser currentUser;
     @Mock
     private LearningApiMapper mapper;
@@ -71,7 +74,8 @@ class LearningControllerTest {
     void getTree_usesUserId_maps_returns200() {
         var domain = new ru.eunoia.application.learning.domain.model.TreeSnapshot(
                 new ru.eunoia.application.learning.domain.model.TreeVocabulary(0, 0, 0),
-                List.of(), ru.eunoia.application.garden.domain.model.ActivityStats.empty());
+                List.of(), ru.eunoia.application.garden.domain.model.ActivityStats.empty(),
+                new ru.eunoia.application.learning.domain.model.TreeGrammar(0, 0, 0));
         TreeSnapshot dto = new TreeSnapshot();
         when(currentUser.id()).thenReturn(USER);
         when(learningQuery.treeSnapshot(USER)).thenReturn(domain);
@@ -231,25 +235,30 @@ class LearningControllerTest {
     }
 
     @Test
-    void listGrammar_maps_returns200() {
+    void listGrammar_usesUserId_maps_returns200() {
         var trunk = List.of(new ru.eunoia.application.learning.domain.model.GrammarView(
-                new Grammar("gr:present-simple", "Present Simple", null, List.of()), List.of()));
+                new Grammar("gr:present-simple", "Present Simple", null, List.of()),
+                ru.eunoia.application.garden.domain.model.MasteryStatus.UNKNOWN, List.of()));
         List<GrammarView> dtos = List.of(new GrammarView());
-        when(learningQuery.grammarTrunk()).thenReturn(trunk);
+        when(currentUser.id()).thenReturn(USER);
+        when(learningQuery.grammarTrunk(USER)).thenReturn(trunk);
         when(mapper.toGrammarViews(trunk)).thenReturn(dtos);
 
         ResponseEntity<List<GrammarView>> response = controller.listGrammar();
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isSameAs(dtos);
+        verify(learningQuery).grammarTrunk(USER);
     }
 
     @Test
-    void getGrammar_found_maps_returns200() {
+    void getGrammar_found_usesUserId_maps_returns200() {
         var domain = new ru.eunoia.application.learning.domain.model.GrammarView(
-                new Grammar("gr:present-simple", "Present Simple", null, List.of()), List.of());
+                new Grammar("gr:present-simple", "Present Simple", null, List.of()),
+                ru.eunoia.application.garden.domain.model.MasteryStatus.KNOWN, List.of());
         GrammarView dto = new GrammarView();
-        when(learningQuery.grammar("gr:present-simple")).thenReturn(Optional.of(domain));
+        when(currentUser.id()).thenReturn(USER);
+        when(learningQuery.grammar(USER, "gr:present-simple")).thenReturn(Optional.of(domain));
         when(mapper.toGrammarView(domain)).thenReturn(dto);
 
         ResponseEntity<GrammarView> response = controller.getGrammar("gr:present-simple");
@@ -260,9 +269,44 @@ class LearningControllerTest {
 
     @Test
     void getGrammar_notFound_throwsNotFound() {
-        when(learningQuery.grammar("missing")).thenReturn(Optional.empty());
+        when(currentUser.id()).thenReturn(USER);
+        when(learningQuery.grammar(USER, "missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> controller.getGrammar("missing"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("missing");
+    }
+
+    @Test
+    void setGrammarMastery_marks_returnsUpdatedView() {
+        MasteryRequest request = new MasteryRequest();
+        request.setStatus(MasteryStatus.KNOWN);
+        var domainStatus = ru.eunoia.application.garden.domain.model.MasteryStatus.KNOWN;
+        var domain = new ru.eunoia.application.learning.domain.model.GrammarView(
+                new Grammar("past-simple", "Past Simple", null, List.of()), domainStatus, List.of());
+        GrammarView dto = new GrammarView();
+        when(currentUser.id()).thenReturn(USER);
+        when(mapper.toDomainStatus(MasteryStatus.KNOWN)).thenReturn(domainStatus);
+        when(learningQuery.grammar(USER, "past-simple")).thenReturn(Optional.of(domain));
+        when(mapper.toGrammarView(domain)).thenReturn(dto);
+
+        ResponseEntity<GrammarView> response = controller.setGrammarMastery("past-simple", request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isSameAs(dto);
+        verify(grammarMastery).setStatus(USER, "past-simple", domainStatus);
+    }
+
+    @Test
+    void setGrammarMastery_ruleMissing_throwsNotFound() {
+        MasteryRequest request = new MasteryRequest();
+        request.setStatus(MasteryStatus.KNOWN);
+        var domainStatus = ru.eunoia.application.garden.domain.model.MasteryStatus.KNOWN;
+        when(currentUser.id()).thenReturn(USER);
+        when(mapper.toDomainStatus(MasteryStatus.KNOWN)).thenReturn(domainStatus);
+        when(learningQuery.grammar(USER, "missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> controller.setGrammarMastery("missing", request))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("missing");
     }

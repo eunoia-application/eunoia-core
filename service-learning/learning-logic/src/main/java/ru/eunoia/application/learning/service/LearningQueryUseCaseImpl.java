@@ -5,10 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import ru.eunoia.application.garden.domain.model.GrammarMastery;
 import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
 import ru.eunoia.application.garden.port.in.ActivityUseCase;
+import ru.eunoia.application.garden.port.in.GrammarMasteryUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
+import ru.eunoia.application.knowledge.domain.model.Grammar;
 import ru.eunoia.application.knowledge.domain.model.Topic;
 import ru.eunoia.application.knowledge.domain.model.WordRef;
 import ru.eunoia.application.knowledge.domain.model.WordSummary;
@@ -16,6 +19,7 @@ import ru.eunoia.application.knowledge.port.out.LexiconRepositoryPort;
 import ru.eunoia.application.learning.domain.model.Band;
 import ru.eunoia.application.learning.domain.model.GrammarView;
 import ru.eunoia.application.learning.domain.model.TopicView;
+import ru.eunoia.application.learning.domain.model.TreeGrammar;
 import ru.eunoia.application.learning.domain.model.TreeSnapshot;
 import ru.eunoia.application.learning.domain.model.TreeTopic;
 import ru.eunoia.application.learning.domain.model.TreeVocabulary;
@@ -46,12 +50,14 @@ public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
     private final LexiconRepositoryPort lexicon;
     private final MasteryRepositoryPort mastery;
     private final ActivityUseCase activity;
+    private final GrammarMasteryUseCase grammarMastery;
 
     public LearningQueryUseCaseImpl(LexiconRepositoryPort lexicon, MasteryRepositoryPort mastery,
-                                    ActivityUseCase activity) {
+                                    ActivityUseCase activity, GrammarMasteryUseCase grammarMastery) {
         this.lexicon = lexicon;
         this.mastery = mastery;
         this.activity = activity;
+        this.grammarMastery = grammarMastery;
     }
 
     @Override
@@ -93,7 +99,19 @@ public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
                     totals.getOrDefault(t.id(), 0L).intValue());
         }).toList();
 
-        return new TreeSnapshot(vocabulary, topics, activity.summary(userId));
+        // ствол: прогресс по грамматике → высота
+        int gKnown = 0;
+        int gLearning = 0;
+        for (GrammarMastery gm : grammarMastery.findByUser(userId)) {
+            if (gm.status() == MasteryStatus.KNOWN) {
+                gKnown++;
+            } else if (gm.status() == MasteryStatus.LEARNING) {
+                gLearning++;
+            }
+        }
+        TreeGrammar grammar = new TreeGrammar(gKnown, gLearning, (int) lexicon.countGrammar());
+
+        return new TreeSnapshot(vocabulary, topics, activity.summary(userId), grammar);
     }
 
     @Override
@@ -162,14 +180,26 @@ public class LearningQueryUseCaseImpl implements LearningQueryUseCase {
     }
 
     @Override
-    public Optional<GrammarView> grammar(String grammarId) {
+    public Optional<GrammarView> grammar(UUID userId, String grammarId) {
         return lexicon.findGrammar(grammarId)
-                .map(g -> new GrammarView(g, lexicon.grammarIllustratedBy(grammarId)));
+                .map(g -> new GrammarView(g, grammarStatusOf(userId, grammarId),
+                        lexicon.grammarIllustratedBy(grammarId)));
     }
 
     @Override
-    public List<GrammarView> grammarTrunk() {
-        return lexicon.grammarTrunk().stream().map(g -> new GrammarView(g, List.of())).toList();
+    public List<GrammarView> grammarTrunk(UUID userId) {
+        List<Grammar> rules = lexicon.grammarTrunk();
+        Map<String, MasteryStatus> statuses = grammarMastery.statuses(userId,
+                rules.stream().map(Grammar::id).toList());
+        return rules.stream()
+                .map(g -> new GrammarView(g, statuses.getOrDefault(g.id(), MasteryStatus.UNKNOWN), List.of()))
+                .toList();
+    }
+
+    /** Мой статус по правилу; нет отметки → UNKNOWN. */
+    private MasteryStatus grammarStatusOf(UUID userId, String grammarId) {
+        return grammarMastery.statuses(userId, List.of(grammarId))
+                .getOrDefault(grammarId, MasteryStatus.UNKNOWN);
     }
 
     /** Сводки слов → листья с темами и моим статусом (по ключу леммы; нет отметки → UNKNOWN). */

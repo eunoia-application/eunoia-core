@@ -18,9 +18,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.eunoia.application.garden.domain.model.ActivityStats;
+import ru.eunoia.application.garden.domain.model.GrammarMastery;
 import ru.eunoia.application.garden.domain.model.Mastery;
 import ru.eunoia.application.garden.domain.model.MasteryStatus;
 import ru.eunoia.application.garden.port.in.ActivityUseCase;
+import ru.eunoia.application.garden.port.in.GrammarMasteryUseCase;
 import ru.eunoia.application.garden.port.out.MasteryRepositoryPort;
 import ru.eunoia.application.knowledge.domain.model.Cefr;
 import ru.eunoia.application.knowledge.domain.model.Grammar;
@@ -33,6 +35,7 @@ import ru.eunoia.application.knowledge.domain.model.WordSummary;
 import ru.eunoia.application.knowledge.port.out.LexiconRepositoryPort;
 import ru.eunoia.application.learning.domain.model.Band;
 import ru.eunoia.application.learning.domain.model.TopicView;
+import ru.eunoia.application.learning.domain.model.TreeGrammar;
 import ru.eunoia.application.learning.domain.model.TreeSnapshot;
 import ru.eunoia.application.learning.domain.model.TreeTopic;
 import ru.eunoia.application.learning.domain.model.WordCard;
@@ -55,12 +58,14 @@ class LearningQueryUseCaseImplTest {
     private MasteryRepositoryPort mastery;
     @Mock
     private ActivityUseCase activity;
+    @Mock
+    private GrammarMasteryUseCase grammarMastery;
 
     private LearningQueryUseCaseImpl useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new LearningQueryUseCaseImpl(lexicon, mastery, activity);
+        useCase = new LearningQueryUseCaseImpl(lexicon, mastery, activity, grammarMastery);
     }
 
     private static Word go() {
@@ -86,6 +91,10 @@ class LearningQueryUseCaseImplTest {
         when(lexicon.topicRoots()).thenReturn(List.of(animals, travel, food));
         var stats = new ActivityStats(4, LocalDate.of(2026, 7, 25), 11);
         when(activity.summary(USER)).thenReturn(stats);
+        when(grammarMastery.findByUser(USER)).thenReturn(List.of(
+                new GrammarMastery(USER, "past-simple", MasteryStatus.KNOWN, LocalDateTime.now()),
+                new GrammarMastery(USER, "present-simple", MasteryStatus.LEARNING, LocalDateTime.now())));
+        when(lexicon.countGrammar()).thenReturn(27L);
 
         TreeSnapshot snap = useCase.treeSnapshot(USER);
 
@@ -99,6 +108,7 @@ class LearningQueryUseCaseImplTest {
                         tuple("travel", 0, 1, 80),
                         tuple("food", 0, 0, 200));
         assertThat(snap.activity()).isSameAs(stats);
+        assertThat(snap.grammar()).isEqualTo(new TreeGrammar(1, 1, 27));
     }
 
     @Test
@@ -109,6 +119,8 @@ class LearningQueryUseCaseImplTest {
         when(lexicon.topicWordCounts()).thenReturn(Map.of("animals", 140L));
         when(lexicon.topicRoots()).thenReturn(List.of(new Topic("animals", "Животные", "animals")));
         when(activity.summary(USER)).thenReturn(ActivityStats.empty());
+        when(grammarMastery.findByUser(USER)).thenReturn(List.of());
+        when(lexicon.countGrammar()).thenReturn(27L);
 
         TreeSnapshot snap = useCase.treeSnapshot(USER);
 
@@ -117,6 +129,7 @@ class LearningQueryUseCaseImplTest {
         assertThat(snap.topics()).singleElement()
                 .extracting(TreeTopic::known, TreeTopic::total).isEqualTo(List.of(0, 140));
         assertThat(snap.activity().streak()).isZero();
+        assertThat(snap.grammar()).isEqualTo(new TreeGrammar(0, 0, 27));
     }
 
     @Test
@@ -273,24 +286,46 @@ class LearningQueryUseCaseImplTest {
     }
 
     @Test
-    void grammar_wrapsRuleWithIllustratingWords() {
+    void grammar_wrapsRuleWithStatusAndIllustratingWords() {
         var rule = new Grammar("gr:past-simple", "Past Simple", Cefr.A2, List.of("gr:present-simple"));
         var words = List.of(new WordRef(GO, "go", PartOfSpeech.VERB));
         when(lexicon.findGrammar("gr:past-simple")).thenReturn(Optional.of(rule));
         when(lexicon.grammarIllustratedBy("gr:past-simple")).thenReturn(words);
+        when(grammarMastery.statuses(USER, List.of("gr:past-simple")))
+                .thenReturn(Map.of("gr:past-simple", MasteryStatus.LEARNING));
 
-        var view = useCase.grammar("gr:past-simple");
+        var view = useCase.grammar(USER, "gr:past-simple");
 
         assertThat(view).isPresent();
+        assertThat(view.get().status()).isEqualTo(MasteryStatus.LEARNING);
         assertThat(view.get().illustratedBy()).isSameAs(words);
     }
 
     @Test
-    void grammarTrunk_wrapsRules_emptyIllustratedBy() {
-        var rules = List.of(new Grammar("gr:present-simple", "Present Simple", Cefr.A1, List.of()));
-        when(lexicon.grammarTrunk()).thenReturn(rules);
+    void grammar_noMark_statusUnknown() {
+        var rule = new Grammar("gr:x", "X", Cefr.A1, List.of());
+        when(lexicon.findGrammar("gr:x")).thenReturn(Optional.of(rule));
+        when(lexicon.grammarIllustratedBy("gr:x")).thenReturn(List.of());
+        when(grammarMastery.statuses(USER, List.of("gr:x"))).thenReturn(Map.of());
 
-        assertThat(useCase.grammarTrunk()).hasSize(1);
-        assertThat(useCase.grammarTrunk().get(0).illustratedBy()).isEmpty();
+        assertThat(useCase.grammar(USER, "gr:x").orElseThrow().status()).isEqualTo(MasteryStatus.UNKNOWN);
+    }
+
+    @Test
+    void grammarTrunk_overlaysStatus_emptyIllustratedBy() {
+        var rules = List.of(
+                new Grammar("gr:present-simple", "Present Simple", Cefr.A1, List.of()),
+                new Grammar("gr:past-simple", "Past Simple", Cefr.A2, List.of()));
+        when(lexicon.grammarTrunk()).thenReturn(rules);
+        when(grammarMastery.statuses(USER, List.of("gr:present-simple", "gr:past-simple")))
+                .thenReturn(Map.of("gr:present-simple", MasteryStatus.KNOWN));
+
+        var trunk = useCase.grammarTrunk(USER);
+
+        assertThat(trunk).extracting(v -> v.grammar().id(), v -> v.status())
+                .containsExactly(
+                        tuple("gr:present-simple", MasteryStatus.KNOWN),
+                        tuple("gr:past-simple", MasteryStatus.UNKNOWN));
+        assertThat(trunk.get(0).illustratedBy()).isEmpty();
     }
 }

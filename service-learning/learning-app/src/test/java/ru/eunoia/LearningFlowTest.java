@@ -216,6 +216,36 @@ class LearningFlowTest {
         assertThat(tree.getActivity().getStreak()).isEqualTo(1);
         assertThat(tree.getActivity().getDaysActive30()).isEqualTo(1);
         assertThat(tree.getActivity().getLastActiveDate()).isNotNull();
+        // грамматику ещё не отмечал: 2 правила в стволе (present/past-simple), 0 освоено
+        assertThat(tree.getGrammar().getTotal()).isEqualTo(2);
+        assertThat(tree.getGrammar().getKnown()).isZero();
+    }
+
+    /**
+     * Прогресс грамматики (высота дерева): отметил правило «знаю» — статус виден в ствол-виде и в
+     * снапшоте (grammar.known=1). Мастерство правила — параллель словесному, через grammar_mastery.
+     */
+    @Test
+    void grammarMastery_marksRule_reflectedInViewAndTree() {
+        // до отметки — правило серое
+        assertThat(get("/learning/grammar/present-simple", GrammarView.class).getStatus())
+                .isEqualTo(MasteryStatus.UNKNOWN);
+
+        MasteryRequest req = new MasteryRequest();
+        req.setStatus(MasteryStatus.KNOWN);
+        GrammarView marked = client().put().uri("/learning/grammar/mastery/present-simple")
+                .header("Authorization", "Bearer " + userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(req).retrieve().body(GrammarView.class);
+        assertThat(marked).isNotNull();
+        assertThat(marked.getStatus()).isEqualTo(MasteryStatus.KNOWN);
+
+        // ствол грамматики и снапшот знают про новый статус
+        assertThat(getList("/learning/grammar", GRAMMAR_VIEWS))
+                .filteredOn(g -> g.getId().equals("present-simple"))
+                .singleElement()
+                .satisfies(g -> assertThat(g.getStatus()).isEqualTo(MasteryStatus.KNOWN));
+        assertThat(get("/learning/tree", TreeSnapshot.class).getGrammar().getKnown()).isEqualTo(1);
     }
 
     /**

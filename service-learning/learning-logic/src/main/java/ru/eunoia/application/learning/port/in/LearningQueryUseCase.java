@@ -39,9 +39,9 @@ public interface LearningQueryUseCase {
     /** Мой список на изучение — слова, отмеченные «Учить» (LEARNING). */
     List<WordLeaf> study(UUID userId);
 
-    /** Правило + слова-примеры. Пусто, если правила нет. */
-    Optional<GrammarView> grammar(String grammarId);
+    /** Правило + мой статус + слова-примеры. Пусто, если правила нет. */
+    Optional<GrammarView> grammar(UUID userId, String grammarId);
 
-    /** Весь ствол грамматики: правила по возрастанию CEFR. */
-    List<GrammarView> grammarTrunk();
+    /** Весь ствол грамматики: правила по возрастанию CEFR, с моим статусом на каждом. */
+    List<GrammarView> grammarTrunk(UUID userId);
 }

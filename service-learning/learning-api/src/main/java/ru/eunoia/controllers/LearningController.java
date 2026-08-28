@@ -15,6 +15,7 @@ import com.eunoia.application.learning.model.WordRef;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+import ru.eunoia.application.garden.port.in.GrammarMasteryUseCase;
 import ru.eunoia.application.garden.port.in.MasteryUseCase;
 import ru.eunoia.application.learning.domain.exception.NotFoundException;
 import ru.eunoia.application.learning.port.in.LearningQueryUseCase;
@@ -31,13 +32,16 @@ public class LearningController implements LearningApi {
 
     private final LearningQueryUseCase learningQuery;
     private final MasteryUseCase mastery;
+    private final GrammarMasteryUseCase grammarMastery;
     private final CurrentUser currentUser;
     private final LearningApiMapper mapper;
 
     public LearningController(LearningQueryUseCase learningQuery, MasteryUseCase mastery,
-                              CurrentUser currentUser, LearningApiMapper mapper) {
+                              GrammarMasteryUseCase grammarMastery, CurrentUser currentUser,
+                              LearningApiMapper mapper) {
         this.learningQuery = learningQuery;
         this.mastery = mastery;
+        this.grammarMastery = grammarMastery;
         this.currentUser = currentUser;
         this.mapper = mapper;
     }
@@ -93,12 +97,22 @@ public class LearningController implements LearningApi {
 
     @Override
     public ResponseEntity<List<GrammarView>> listGrammar() {
-        return ResponseEntity.ok(mapper.toGrammarViews(learningQuery.grammarTrunk()));
+        return ResponseEntity.ok(mapper.toGrammarViews(learningQuery.grammarTrunk(currentUser.id())));
     }
 
     @Override
     public ResponseEntity<GrammarView> getGrammar(String id) {
-        return learningQuery.grammar(id)
+        return learningQuery.grammar(currentUser.id(), id)
+                .map(mapper::toGrammarView)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new NotFoundException("Правило не найдено: " + id));
+    }
+
+    @Override
+    public ResponseEntity<GrammarView> setGrammarMastery(String id, MasteryRequest request) {
+        // отмечаем правило (знаю/учу), затем отдаём его с обновлённым статусом; нет правила → 404
+        grammarMastery.setStatus(currentUser.id(), id, mapper.toDomainStatus(request.getStatus()));
+        return learningQuery.grammar(currentUser.id(), id)
                 .map(mapper::toGrammarView)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new NotFoundException("Правило не найдено: " + id));

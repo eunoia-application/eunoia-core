@@ -58,6 +58,9 @@ public interface LexiconRepositoryPort {
     /** Весь ствол грамматики: правила по возрастанию CEFR (с их предшественниками). */
     List<Grammar> grammarTrunk();
 
+    /** Сколько всего правил в стволе — total для «высоты» дерева. */
+    long countGrammar();
+
     /** Слова-примеры, иллюстрирующие правило (ILLUSTRATES). */
     List<WordRef> grammarIllustratedBy(String grammarId);
 }

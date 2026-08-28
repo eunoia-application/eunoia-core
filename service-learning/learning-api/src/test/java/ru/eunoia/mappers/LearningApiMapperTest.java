@@ -36,13 +36,14 @@ class LearningApiMapperTest {
     private final LearningApiMapper mapper = new LearningApiMapper();
 
     @Test
-    void toTreeSnapshot_mapsVocabularyTopicsActivity() {
+    void toTreeSnapshot_mapsVocabularyTopicsActivityGrammar() {
         var domain = new ru.eunoia.application.learning.domain.model.TreeSnapshot(
                 new ru.eunoia.application.learning.domain.model.TreeVocabulary(12, 3, 5863),
                 List.of(new ru.eunoia.application.learning.domain.model.TreeTopic(
                         "animals", "Животные", "animals", 4, 1, 140)),
                 new ru.eunoia.application.garden.domain.model.ActivityStats(
-                        7, LocalDate.of(2026, 7, 25), 11));
+                        7, LocalDate.of(2026, 7, 25), 11),
+                new ru.eunoia.application.learning.domain.model.TreeGrammar(6, 2, 27));
 
         var dto = mapper.toTreeSnapshot(domain);
 
@@ -60,19 +61,24 @@ class LearningApiMapperTest {
         assertThat(dto.getActivity().getStreak()).isEqualTo(7);
         assertThat(dto.getActivity().getLastActiveDate()).isEqualTo(LocalDate.of(2026, 7, 25));
         assertThat(dto.getActivity().getDaysActive30()).isEqualTo(11);
+        assertThat(dto.getGrammar().getKnown()).isEqualTo(6);
+        assertThat(dto.getGrammar().getLearning()).isEqualTo(2);
+        assertThat(dto.getGrammar().getTotal()).isEqualTo(27);
     }
 
     @Test
     void toTreeSnapshot_emptyActivity_nullLastActiveDate() {
         var domain = new ru.eunoia.application.learning.domain.model.TreeSnapshot(
                 new ru.eunoia.application.learning.domain.model.TreeVocabulary(0, 0, 0),
-                List.of(), ru.eunoia.application.garden.domain.model.ActivityStats.empty());
+                List.of(), ru.eunoia.application.garden.domain.model.ActivityStats.empty(),
+                new ru.eunoia.application.learning.domain.model.TreeGrammar(0, 0, 27));
 
         var dto = mapper.toTreeSnapshot(domain);
 
         assertThat(dto.getActivity().getLastActiveDate()).isNull();
         assertThat(dto.getActivity().getStreak()).isZero();
         assertThat(dto.getTopics()).isEmpty();
+        assertThat(dto.getGrammar().getTotal()).isEqualTo(27);
     }
 
     @Test
@@ -214,9 +220,10 @@ class LearningApiMapperTest {
     }
 
     @Test
-    void toGrammarView_mapsFields_prerequisites_illustratedBy() {
+    void toGrammarView_mapsFields_status_prerequisites_illustratedBy() {
         var view = new ru.eunoia.application.learning.domain.model.GrammarView(
                 new Grammar("gr:past-simple", "Past Simple", Cefr.A2, List.of("gr:present-simple")),
+                MasteryStatus.LEARNING,
                 List.of(new WordRef("en:go", "go", PartOfSpeech.VERB)));
 
         var dto = mapper.toGrammarView(view);
@@ -224,6 +231,7 @@ class LearningApiMapperTest {
         assertThat(dto.getId()).isEqualTo("gr:past-simple");
         assertThat(dto.getName()).isEqualTo("Past Simple");
         assertThat(dto.getCefr()).isEqualTo(com.eunoia.application.learning.model.Cefr.A2);
+        assertThat(dto.getStatus()).isEqualTo(com.eunoia.application.learning.model.MasteryStatus.LEARNING);
         assertThat(dto.getPrerequisites()).containsExactly("gr:present-simple");
         assertThat(dto.getIllustratedBy()).hasSize(1);
         assertThat(dto.getIllustratedBy().get(0).getId()).isEqualTo("en:go");
@@ -232,11 +240,12 @@ class LearningApiMapperTest {
     @Test
     void toGrammarView_nullCefr_emptyLists() {
         var view = new ru.eunoia.application.learning.domain.model.GrammarView(
-                new Grammar("gr:x", "X", null, List.of()), List.of());
+                new Grammar("gr:x", "X", null, List.of()), MasteryStatus.UNKNOWN, List.of());
 
         var dto = mapper.toGrammarView(view);
 
         assertThat(dto.getCefr()).isNull();
+        assertThat(dto.getStatus()).isEqualTo(com.eunoia.application.learning.model.MasteryStatus.UNKNOWN);
         assertThat(dto.getPrerequisites()).isEmpty();
         assertThat(dto.getIllustratedBy()).isEmpty();
     }
@@ -244,7 +253,7 @@ class LearningApiMapperTest {
     @Test
     void toGrammarViews_mapsList() {
         var view = new ru.eunoia.application.learning.domain.model.GrammarView(
-                new Grammar("gr:a", "A", Cefr.A1, List.of()), List.of());
+                new Grammar("gr:a", "A", Cefr.A1, List.of()), MasteryStatus.KNOWN, List.of());
 
         assertThat(mapper.toGrammarViews(List.of(view))).hasSize(1);
     }

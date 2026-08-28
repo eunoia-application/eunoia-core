@@ -192,6 +192,11 @@ public class LexiconRepositoryAdapter implements LexiconRepositoryPort {
     }
 
     @Override
+    public long countGrammar() {
+        return grammarRepo.count();
+    }
+
+    @Override
     public List<WordRef> grammarIllustratedBy(String grammarId) {
         return lexemeRepo.illustrating(grammarId).stream().map(this::toWordRef).toList();
     }

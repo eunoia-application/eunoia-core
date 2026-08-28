@@ -150,6 +150,12 @@ class LexiconRepositoryAdapterTest {
     }
 
     @Test
+    void countGrammar_countsRules() {
+        // в сиде один узел Grammar (past-simple)
+        assertThat(adapter.countGrammar()).isEqualTo(1L);
+    }
+
+    @Test
     void findTopic_mapsNode() {
         Topic topic = adapter.findTopic("movement").orElseThrow();
 

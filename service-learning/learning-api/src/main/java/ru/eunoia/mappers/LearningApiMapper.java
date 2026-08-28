@@ -11,6 +11,7 @@ import com.eunoia.application.learning.model.TopicRef;
 import com.eunoia.application.learning.model.TopicView;
 import com.eunoia.application.learning.model.Translation;
 import com.eunoia.application.learning.model.TreeActivity;
+import com.eunoia.application.learning.model.TreeGrammar;
 import com.eunoia.application.learning.model.TreeSnapshot;
 import com.eunoia.application.learning.model.TreeTopic;
 import com.eunoia.application.learning.model.TreeVocabulary;
@@ -37,6 +38,15 @@ public class LearningApiMapper {
         dto.setVocabulary(toTreeVocabulary(snap.vocabulary()));
         dto.setTopics(snap.topics().stream().map(this::toTreeTopic).toList());
         dto.setActivity(toTreeActivity(snap.activity()));
+        dto.setGrammar(toTreeGrammar(snap.grammar()));
+        return dto;
+    }
+
+    private TreeGrammar toTreeGrammar(ru.eunoia.application.learning.domain.model.TreeGrammar g) {
+        TreeGrammar dto = new TreeGrammar();
+        dto.setKnown(g.known());
+        dto.setLearning(g.learning());
+        dto.setTotal(g.total());
         return dto;
     }
 
@@ -145,6 +155,7 @@ public class LearningApiMapper {
         dto.setId(grammar.id());
         dto.setName(grammar.name());
         dto.setCefr(toCefr(grammar.cefr()));
+        dto.setStatus(toStatus(view.status()));
         dto.setPrerequisites(grammar.prerequisites());
         dto.setIllustratedBy(toWordRefs(view.illustratedBy()));
         return dto;
