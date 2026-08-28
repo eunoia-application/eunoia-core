@@ -1,0 +1,54 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: service-learning
+
+  # Канонический граф знаний (контекст knowledge) — Neo4j.
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:password}
+  # Имя базы в Neo4j. Desktop-инстанс может держать её под своим именем (напр. eunoia);
+  # дефолт neo4j — для docker-compose и Testcontainers.
+  data:
+    neo4j:
+      database: ${NEO4J_DATABASE:neo4j}
+
+  # Персональный оверлей мастерства (контекст garden) — Postgres.
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/learning_db}
+    username: ${DB_USERNAME:learning_db}
+    password: ${DB_PASSWORD:learning_password}
+  jpa:
+    hibernate:
+      ddl-auto: none      # схемой оверлея владеет Liquibase
+    open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  # Валидируем JWT от auth его же публичным ключом (JWKS). Прямой адрес; lb:// — это харднинг.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+
+# Регистрация в Eureka. Локально — как localhost (иначе gateway не достучится по LAN-IP).
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL:http://localhost:9999/eureka/}
+  instance:
+    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

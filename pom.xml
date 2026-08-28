@@ -20,6 +20,7 @@
         <module>eureka-server</module>
         <module>service-auth</module>
         <module>service-user</module>
+        <module>service-learning</module>
     </modules>
 
     <properties>
@@ -34,7 +35,7 @@
         <jacoco.version>0.8.13</jacoco.version>
         <!-- Контракты OpenAPI из eunoia-oas (GitHub Packages). Lockstep-версия трейна —
              единый источник для всех сервисов, бампаем здесь. -->
-        <eunoia-oas.version>2.1.0</eunoia-oas.version>
+        <eunoia-oas.version>3.3.0</eunoia-oas.version>
     </properties>
 
     <profiles>
@@ -80,6 +81,11 @@
             <dependency>
                 <groupId>com.eunoia.application</groupId>
                 <artifactId>user-contract</artifactId>
+                <version>${eunoia-oas.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.eunoia.application</groupId>
+                <artifactId>learning-contract</artifactId>
                 <version>${eunoia-oas.version}</version>
             </dependency>
         </dependencies>

@@ -28,6 +28,9 @@ application:
     - id: "service-user"
       from: "api/v1/users"
       to: "lb://SERVICE-USER"
+    - id: "service-learning"
+      from: "api/v1/learning"
+      to: "lb://SERVICE-LEARNING"
 
 
 eureka:

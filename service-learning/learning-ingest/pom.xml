@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Родитель — корень eunoia-core: отсюда прилетают версии (Boot 4.1 BOM),
+        Java 25 и настройки компилятора. НО этот модуль намеренно НЕ прописан
+        в <modules> родителя: это отдельный ops-тул, не часть сборки трейна.
+        Собирается явно:  mvn -f service-learning/learning-ingest/pom.xml package
+    -->
+    <parent>
+        <groupId>ru.eunoia</groupId>
+        <artifactId>eunoia-core</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <groupId>ru.eunoia.learning.ingest</groupId>
+    <artifactId>learning-ingest</artifactId>
+
+    <!--
+        Наполнение канонического графа Neo4j из частотника + kaikki-JSONL (Wiktionary).
+        Тул НЕ деплоится: сервис learning только ЧИТАЕТ граф, а пишет в него — этот тул,
+        руками, как разовая/повторяемая ops-задача. Никакого Spring — голый driver + Jackson.
+    -->
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Драйвер Neo4j — версия из родителя (в проекте 6.1.0). -->
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+        </dependency>
+
+        <!-- Разбор kaikki-JSONL через дерево JsonNode — версия из родителя (Boot BOM). -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- Итоговый runnable-jar: target/learning-ingest.jar -->
+        <finalName>learning-ingest</finalName>
+        <plugins>
+            <!--
+                Fat-jar со всеми зависимостями и Main-Class в манифесте.
+                ServicesResourceTransformer склеивает META-INF/services (netty/driver),
+                фильтр выкидывает подписи чужих jar'ов и module-info (иначе fat-jar не стартует).
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <!--
+                            combine.self=override — обязательно: spring-boot-parent конфигурит shade
+                            в pluginManagement (трансформеры spring.*), и без override наши трансформеры
+                            мержатся позиционно с родительскими → <resource> из AppendingTransformer
+                            прилетает в наш ManifestResourceTransformer → «Cannot find 'resource'».
+                            Override = берём только свой конфиг.
+                        -->
+                        <configuration combine.self="override">
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>ru.eunoia.ingest.LearningIngest</mainClass>
+                                </transformer>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

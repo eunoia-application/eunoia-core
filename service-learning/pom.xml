@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>ru.eunoia</groupId>
+        <artifactId>eunoia-core</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>ru.eunoia.learning</groupId>
+    <artifactId>service-learning</artifactId>
+    <packaging>pom</packaging>
+
+    <!--
+        Учебное ядро как модулит: два бандед-контекста (knowledge на Neo4j, garden на Postgres)
+        живут в одном развёртывании, разведены по пакетам. Гексагоналка: learning-logic (ядро),
+        learning-api (contract-first), learning-app (инфра + boot).
+    -->
+    <modules>
+        <module>learning-api</module>
+        <module>learning-logic</module>
+        <module>learning-app</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <swagger-annotations.version>2.2.25</swagger-annotations.version>
+        <openapi-generator.version>7.10.0</openapi-generator.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>ru.eunoia.learning.logic</groupId>
+                <artifactId>learning-logic</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ru.eunoia.learning.api</groupId>
+                <artifactId>learning-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations</artifactId>
+                <version>${swagger-annotations.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>
